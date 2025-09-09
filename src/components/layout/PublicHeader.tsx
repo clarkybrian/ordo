@@ -3,11 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Menu, X } from 'lucide-react'
 
-interface PublicHeaderProps {
-  onLogin: () => void
-}
+// Suppression de l'interface qui n'est plus nécessaire
 
-export function PublicHeader({ onLogin }: PublicHeaderProps) {
+export function PublicHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
 
@@ -27,44 +25,6 @@ export function PublicHeader({ onLogin }: PublicHeaderProps) {
 
   return (
     <>
-      {/* Carrousel de marques en haut */}
-      <div className="bg-gray-50 border-b border-gray-100 overflow-hidden">
-        <div className="relative">
-          <motion.div
-            className="flex items-center space-x-8 py-3"
-            animate={{ x: [0, -1920] }}
-            transition={{
-              duration: 30,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-          >
-            {/* Première série de logos */}
-            <div className="flex items-center space-x-8 min-w-max">
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Gmail" alt="Gmail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Outlook" alt="Outlook" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Yahoo" alt="Yahoo" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Apple" alt="Apple Mail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Thunderbird" alt="Thunderbird" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=ProtonMail" alt="ProtonMail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Mailchimp" alt="Mailchimp" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Zoho" alt="Zoho" className="h-8 opacity-60" />
-            </div>
-            {/* Deuxième série pour la continuité */}
-            <div className="flex items-center space-x-8 min-w-max">
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Gmail" alt="Gmail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Outlook" alt="Outlook" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Yahoo" alt="Yahoo" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Apple" alt="Apple Mail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Thunderbird" alt="Thunderbird" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=ProtonMail" alt="ProtonMail" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Mailchimp" alt="Mailchimp" className="h-8 opacity-60" />
-              <img src="https://via.placeholder.com/120x40/000/fff?text=Zoho" alt="Zoho" className="h-8 opacity-60" />
-            </div>
-          </motion.div>
-        </div>
-      </div>
-
       {/* Header principal */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -106,12 +66,12 @@ export function PublicHeader({ onLogin }: PublicHeaderProps) {
 
             {/* CTA et menu mobile */}
             <div className="flex items-center space-x-4">
-              <button
-                onClick={onLogin}
+              <Link
+                to="/login"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-xl font-medium hover:shadow-lg hover:scale-105 transition-all duration-200"
               >
                 Se connecter
-              </button>
+              </Link>
 
               {/* Bouton menu mobile */}
               <button

@@ -8,7 +8,6 @@ import {
   User, 
   Menu, 
   X, 
-  Home,
   BarChart3,
   CreditCard
 } from 'lucide-react'
@@ -37,8 +36,7 @@ export function Layout({ user }: LayoutProps) {
   }
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Emails', href: '/emails', icon: Mail },
+    { name: 'Dashboard', href: '/dashboard', icon: Mail },
     { name: 'Catégories', href: '/categories', icon: FolderOpen },
     { name: 'Statistiques', href: '/stats', icon: BarChart3 },
     { name: 'Abonnement', href: '/subscription', icon: CreditCard },

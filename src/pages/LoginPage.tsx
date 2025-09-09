@@ -12,7 +12,7 @@ export function LoginPage() {
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       })
       
@@ -61,8 +61,8 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Background Animations */}
-      <div className="fixed inset-0 pointer-events-none">
+      {/* Background Animations - Amélioré avec des formes géométriques dynamiques */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <motion.div
           className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/15 to-purple-400/15 rounded-full blur-3xl"
           animate={{
@@ -92,6 +92,93 @@ export function LoginPage() {
           }}
           style={{ right: '-5%', top: '30%' }}
         />
+        
+        {/* Formes géométriques dynamiques */}
+        {/* Triangle */}
+        <motion.div
+          className="absolute w-24 h-24 border-t-[40px] border-r-[20px] border-l-[20px] border-transparent border-t-blue-400/10"
+          animate={{
+            rotate: [0, 360],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          style={{ left: '15%', top: '20%' }}
+        />
+        
+        {/* Hexagone */}
+        <motion.div
+          className="absolute"
+          animate={{
+            rotate: [0, 360],
+            y: [0, 50, 0]
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          style={{ right: '20%', top: '40%' }}
+        >
+          <div className="w-16 h-10 bg-gradient-to-br from-cyan-300/10 to-blue-300/10 relative">
+            <div className="absolute top-0 left-0 w-0 h-0 border-b-[5px] border-r-[8px] border-transparent border-b-cyan-300/10"></div>
+            <div className="absolute top-0 right-0 w-0 h-0 border-b-[5px] border-l-[8px] border-transparent border-b-blue-300/10"></div>
+            <div className="absolute bottom-0 left-0 w-0 h-0 border-t-[5px] border-r-[8px] border-transparent border-t-cyan-300/10"></div>
+            <div className="absolute bottom-0 right-0 w-0 h-0 border-t-[5px] border-l-[8px] border-transparent border-t-blue-300/10"></div>
+          </div>
+        </motion.div>
+        
+        {/* Cercles */}
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`circle-${i}`}
+            className="absolute rounded-full"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{
+              duration: 4 + i,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.5
+            }}
+            style={{
+              width: `${20 + i * 5}px`,
+              height: `${20 + i * 5}px`,
+              left: `${10 + i * 10}%`,
+              top: `${30 + (i % 4) * 15}%`,
+              background: `rgba(${100 + i * 20}, ${150 + i * 10}, 255, 0.1)`,
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          />
+        ))}
+        
+        {/* Floating particles */}
+        {[...Array(15)].map((_, i) => (
+          <motion.div
+            key={`particle-${i}`}
+            className={`absolute w-${1 + (i % 2)} h-${1 + (i % 2)} ${i % 3 === 0 ? 'bg-blue-400/30' : i % 3 === 1 ? 'bg-purple-400/30' : 'bg-cyan-400/30'} rounded-full`}
+            animate={{
+              y: [-100, typeof window !== 'undefined' ? window.innerHeight + 100 : 1000],
+              x: [0, Math.sin(i * 5) * 100],
+              opacity: [0, 0.7, 0]
+            }}
+            transition={{
+              duration: Math.random() * 10 + 10,
+              repeat: Infinity,
+              delay: Math.random() * 10,
+              ease: "linear"
+            }}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `-100px`
+            }}
+          />
+        ))}
       </div>
 
       <div className="relative min-h-screen flex">

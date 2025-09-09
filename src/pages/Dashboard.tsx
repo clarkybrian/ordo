@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, Settings, User, Mail, FolderOpen } from 'lucide-react'
+import { Search, Filter, FolderOpen, Mail, RefreshCw, Plus } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
@@ -20,6 +20,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Mock data pour la démo
   useEffect(() => {
@@ -96,66 +97,58 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       email.sender.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
-
-  const totalEmails = emails.length
-  const unreadEmails = emails.filter(e => !e.is_read).length
-  const importantEmails = emails.filter(e => e.is_important).length
+  
+  const handleSync = async () => {
+    setIsSyncing(true)
+    // Simulation de synchronisation
+    setTimeout(() => {
+      setIsSyncing(false)
+    }, 2000)
+  }
+  
+  const unreadCount = emails.filter(e => !e.is_read).length
+  const importantCount = emails.filter(e => e.is_important).length
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Mail className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">Ordo</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* En-tête */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
+              <p className="text-gray-600">
+                {emails.length} emails • {unreadCount} non lus • {importantCount} importants
+              </p>
             </div>
-
-            {/* Stats rapides */}
-            <div className="hidden md:flex items-center space-x-6">
-              <div className="text-center">
-                <div className="text-lg font-semibold text-gray-900">{totalEmails}</div>
-                <div className="text-xs text-gray-500">Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold text-blue-600">{unreadEmails}</div>
-                <div className="text-xs text-gray-500">Non lus</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold text-yellow-600">{importantEmails}</div>
-                <div className="text-xs text-gray-500">Importants</div>
-              </div>
-            </div>
-
-            {/* Actions utilisateur */}
+            
             <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="icon">
-                <Settings className="h-4 w-4" />
+              <Button
+                variant="outline"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Synchronisation...' : 'Synchroniser'}</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={onLogout}>
-                <User className="h-4 w-4" />
+              
+              <Button className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nouvelle catégorie</span>
               </Button>
             </div>
           </div>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Catégories */}
+          {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="mb-6">
               <CardContent className="p-4">
-                <h2 className="font-semibold text-gray-900 mb-4 flex items-center">
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  Catégories
-                </h2>
+                <h2 className="font-semibold text-gray-900 mb-4">Filtres rapides</h2>
                 
-                <div className="space-y-2">
+                <div className="space-y-2 mb-6">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -168,9 +161,40 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                   >
                     <div className="flex items-center justify-between">
                       <span>Tous les emails</span>
-                      <span className="text-sm">{totalEmails}</span>
+                      <span className="text-sm">{emails.length}</span>
                     </div>
                   </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedCategory('unread')}
+                    className={`w-full text-left p-3 rounded-lg transition-colors hover:bg-gray-100`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Non lus</span>
+                      <span className="text-sm">{unreadCount}</span>
+                    </div>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedCategory('important')}
+                    className={`w-full text-left p-3 rounded-lg transition-colors hover:bg-gray-100`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Importants</span>
+                      <span className="text-sm">{importantCount}</span>
+                    </div>
+                  </motion.button>
+                </div>
+                
+                <h2 className="font-semibold text-gray-900 mb-4 flex items-center">
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Catégories
+                </h2>
+                <div className="space-y-2">
 
                   {categories.map((category) => (
                     <motion.button

@@ -40,13 +40,6 @@ export function LandingPage() {
     { name: 'LinkedIn', logo: '💼' }
   ]
 
-  const emailProviders = [
-    { name: 'Gmail', icon: '📧', color: 'from-red-500 to-red-600' },
-    { name: 'Outlook', icon: '📮', color: 'from-blue-600 to-blue-700' },
-    { name: 'Yahoo', icon: '💌', color: 'from-purple-600 to-purple-700' },
-    { name: 'ProtonMail', icon: '🔒', color: 'from-green-600 to-green-700' }
-  ]
-
   const features = [
     {
       icon: <Zap className="h-8 w-8" />,
@@ -101,8 +94,8 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
-      {/* Background Animations */}
-      <div className="fixed inset-0 pointer-events-none">
+      {/* Background Animations - Amélioré avec des formes géométriques dynamiques */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {/* Gradient orbs */}
         <motion.div
           className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"
@@ -149,14 +142,104 @@ export function LandingPage() {
           style={{ left: '50%', bottom: '20%' }}
         />
 
-        {/* Floating particles */}
-        {[...Array(12)].map((_, i) => (
+        {/* Formes géométriques dynamiques */}
+        {/* Triangle */}
+        <motion.div
+          className="absolute w-24 h-24 border-t-[40px] border-r-[20px] border-l-[20px] border-transparent border-t-blue-400/10"
+          animate={{
+            rotate: [0, 360],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          style={{ left: '15%', top: '20%' }}
+        />
+        
+        {/* Hexagone */}
+        <motion.div
+          className="absolute"
+          animate={{
+            rotate: [0, 360],
+            y: [0, 50, 0]
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          style={{ right: '20%', top: '40%' }}
+        >
+          <div className="w-20 h-12 bg-gradient-to-br from-cyan-300/10 to-blue-300/10 relative">
+            <div className="absolute top-0 left-0 w-0 h-0 border-b-[6px] border-r-[10px] border-transparent border-b-cyan-300/10"></div>
+            <div className="absolute top-0 right-0 w-0 h-0 border-b-[6px] border-l-[10px] border-transparent border-b-blue-300/10"></div>
+            <div className="absolute bottom-0 left-0 w-0 h-0 border-t-[6px] border-r-[10px] border-transparent border-t-cyan-300/10"></div>
+            <div className="absolute bottom-0 right-0 w-0 h-0 border-t-[6px] border-l-[10px] border-transparent border-t-blue-300/10"></div>
+          </div>
+        </motion.div>
+        
+        {/* Cercles */}
+        {[...Array(8)].map((_, i) => (
           <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-blue-400/30 rounded-full"
+            key={`circle-${i}`}
+            className="absolute rounded-full"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{
+              duration: 4 + i,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.5
+            }}
+            style={{
+              width: `${20 + i * 5}px`,
+              height: `${20 + i * 5}px`,
+              left: `${10 + i * 10}%`,
+              top: `${30 + (i % 4) * 15}%`,
+              background: `rgba(${100 + i * 20}, ${150 + i * 10}, 255, 0.1)`,
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+          />
+        ))}
+        
+        {/* Carrés */}
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`square-${i}`}
+            className="absolute rounded-md"
+            animate={{
+              rotate: [0, 90, 180, 270, 360],
+              x: [0, 30, 0, -30, 0],
+              y: [0, -30, 0, 30, 0]
+            }}
+            transition={{
+              duration: 20 + i * 2,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+            style={{
+              width: `${15 + i * 10}px`,
+              height: `${15 + i * 10}px`,
+              right: `${15 + i * 8}%`,
+              bottom: `${20 + (i % 3) * 15}%`,
+              background: `rgba(${180 - i * 15}, ${120 + i * 20}, ${220 + i * 5}, 0.08)`,
+              border: '1px solid rgba(255, 255, 255, 0.05)'
+            }}
+          />
+        ))}
+
+        {/* Floating particles */}
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={`particle-${i}`}
+            className={`absolute w-${1 + (i % 3)} h-${1 + (i % 3)} ${i % 3 === 0 ? 'bg-blue-400/30' : i % 3 === 1 ? 'bg-purple-400/30' : 'bg-cyan-400/30'} rounded-full`}
             animate={{
               y: [-100, typeof window !== 'undefined' ? window.innerHeight + 100 : 1000],
-              x: [0, Math.sin(i) * 100],
+              x: [0, Math.sin(i * 5) * 150],
               opacity: [0, 0.7, 0]
             }}
             transition={{
@@ -254,7 +337,7 @@ export function LandingPage() {
               </button>
             </motion.div>
 
-            {/* Email Providers */}
+            {/* Message de compatibilité sans les carrés */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -262,23 +345,9 @@ export function LandingPage() {
               className="mb-16"
             >
               <p className="text-gray-600 mb-8 text-lg">Compatible avec tous vos fournisseurs d'emails préférés</p>
-              <div className="flex flex-wrap justify-center gap-6">
-                {emailProviders.map((provider, index) => (
-                  <motion.div
-                    key={provider.name}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-                    className="flex items-center space-x-3 bg-white rounded-2xl px-6 py-4 shadow-lg shadow-gray-200/50 border border-gray-100 hover:shadow-xl hover:shadow-gray-200/60 transition-all duration-300"
-                  >
-                    <div className={`w-12 h-12 bg-gradient-to-br ${provider.color} rounded-xl flex items-center justify-center text-2xl`}>
-                      {provider.icon}
-                    </div>
-                    <span className="font-semibold text-gray-900 text-lg">{provider.name}</span>
-                  </motion.div>
-                ))}
-              </div>
             </motion.div>
+
+
 
             {/* Stats */}
             <motion.div

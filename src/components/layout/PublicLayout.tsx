@@ -3,26 +3,6 @@ import { motion } from 'framer-motion'
 import { PublicHeader } from './PublicHeader'
 
 export function PublicLayout() {
-  const handleGoogleAuth = async () => {
-    try {
-      const { supabase } = await import('../../lib/supabase')
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-          redirectTo: window.location.origin
-        }
-      })
-      
-      if (error) {
-        console.error('Erreur lors de l\'authentification:', error.message)
-        alert('Erreur lors de la connexion. Veuillez réessayer.')
-      }
-    } catch (error) {
-      console.error('Erreur:', error)
-      alert('Erreur inattendue. Veuillez réessayer.')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
@@ -133,7 +113,7 @@ export function PublicLayout() {
         ))}
       </div>
 
-      <PublicHeader onLogin={handleGoogleAuth} />
+      <PublicHeader />
       <main className="relative">
         <Outlet />
       </main>

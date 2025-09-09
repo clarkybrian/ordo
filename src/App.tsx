@@ -7,9 +7,9 @@ import { FeaturesPage } from './pages/FeaturesPage'
 import { PricingPage } from './pages/PricingPage'
 import { AboutPage } from './pages/AboutPage'
 import { LoginPage } from './pages/LoginPage'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
-import { EmailsPage } from './pages/EmailsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import type { User } from '@supabase/supabase-js'
 
@@ -88,6 +88,7 @@ function App() {
             <Route path="pricing" element={<PricingPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="login" element={<LoginPage />} />
+            <Route path="auth/callback" element={<AuthCallbackPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         )}
@@ -107,7 +108,6 @@ function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard user={{ email: user.email || '', subscription_type: 'free' }} onLogout={() => {}} />} />
-            <Route path="emails" element={<EmailsPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />

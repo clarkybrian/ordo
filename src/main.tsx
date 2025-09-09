@@ -2,18 +2,40 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+// Importe le script de nettoyage du cache
+import './utils/clearCache.js'
+
+// En développement, on permet de désactiver le service worker
+const isDev = import.meta.env.DEV
+const shouldRegisterSW = !isDev || localStorage.getItem('enableSW') === 'true'
 
 // Enregistrement du service worker pour la PWA
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('Service Worker enregistré avec succès:', registration.scope)
+  if (shouldRegisterSW) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { 
+        // En développement, on s'assure que le SW est mis à jour immédiatement
+        updateViaCache: isDev ? 'none' : 'imports' 
       })
-      .catch((error) => {
-        console.log('Échec de l\'enregistrement du Service Worker:', error)
-      })
-  })
+        .then((registration) => {
+          console.log('Service Worker enregistré avec succès:', registration.scope)
+          
+          // Force l'update du service worker
+          if (isDev) {
+            registration.update()
+          }
+        })
+        .catch((error) => {
+          console.log('Échec de l\'enregistrement du Service Worker:', error)
+        })
+    })
+  } else if (isDev) {
+    // En développement, on désactive le service worker si non explicitement activé
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => registration.unregister())
+      console.log('Service Workers désactivés pour le développement')
+    })
+  }
 }
 
 createRoot(document.getElementById('root')!).render(
