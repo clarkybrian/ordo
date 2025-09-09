@@ -1,336 +1,316 @@
 import { motion } from 'framer-motion'
-import { Mail, ArrowLeft, Check, Star, Zap, Shield, Users } from 'lucide-react'
+import { Check, X } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-interface PricingPageProps {
-  onNavigate: (page: string) => void
-}
+export function PricingPage() {
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
 
-export function PricingPage({ onNavigate }: PricingPageProps) {
   const plans = [
     {
-      name: "Gratuit",
-      price: "0€",
-      period: "/mois",
-      description: "Parfait pour découvrir Ordo",
+      name: 'Gratuit',
+      price: '0€',
+      period: '/mois',
+      description: 'Parfait pour commencer',
       features: [
-        "500 emails/mois",
-        "5 catégories personnalisées",
-        "Classification IA basique",
-        "Synchronisation quotidienne",
-        "Application mobile",
-        "Support par email"
+        'Jusqu\'à 100 emails/mois',
+        '3 catégories personnalisées',
+        'Classification automatique',
+        'Support communautaire'
       ],
-      highlighted: false,
-      color: "from-gray-500 to-gray-600",
-      popular: false
+      notIncluded: [
+        'Intégrations avancées',
+        'Analyses détaillées',
+        'Support prioritaire',
+        'API'
+      ],
+      popular: false,
+      cta: 'Commencer gratuitement'
     },
     {
-      name: "Pro",
-      price: "19€",
-      period: "/mois",
-      description: "Pour les professionnels exigeants",
+      name: 'Pro',
+      price: '9€',
+      period: '/mois',
+      description: 'Pour les professionnels',
       features: [
-        "5 000 emails/mois",
-        "Catégories illimitées",
-        "IA avancée + apprentissage",
-        "Synchronisation temps réel",
-        "Analytics détaillés",
-        "Intégrations premium",
-        "Support prioritaire",
-        "Backup automatique"
+        'Jusqu\'à 5 000 emails/mois',
+        'Catégories illimitées',
+        'Classification avancée',
+        'Intégrations multiples',
+        'Analyses détaillées',
+        'Support par email'
       ],
-      highlighted: true,
-      color: "from-blue-500 to-purple-600",
-      popular: true
+      notIncluded: [
+        'Support téléphonique',
+        'Onboarding personnalisé'
+      ],
+      popular: true,
+      cta: 'Essayer Pro'
     },
     {
-      name: "Enterprise",
-      price: "49€",
-      period: "/mois",
-      description: "Pour les équipes et entreprises",
+      name: 'Entreprise',
+      price: '29€',
+      period: '/mois',
+      description: 'Pour les équipes',
       features: [
-        "Emails illimités",
-        "IA personnalisée avancée",
-        "Collaboration d'équipe",
-        "API complète",
-        "Intégrations sur mesure",
-        "Support 24/7 dédié",
-        "Onboarding personnalisé",
-        "SLA garanti 99.9%",
-        "Conformité entreprise"
+        'Emails illimités',
+        'Catégories illimitées',
+        'IA personnalisée',
+        'Toutes les intégrations',
+        'Analyses avancées',
+        'API complète',
+        'Support prioritaire',
+        'Onboarding personnalisé'
       ],
-      highlighted: false,
-      color: "from-purple-500 to-pink-600",
-      popular: false
+      notIncluded: [],
+      popular: false,
+      cta: 'Contacter les ventes'
     }
   ]
 
   const faqs = [
     {
-      question: "Puis-je changer de plan à tout moment ?",
-      answer: "Oui, vous pouvez upgrader ou downgrader votre plan à tout moment. Les changements prennent effet immédiatement."
+      question: 'Puis-je changer de plan à tout moment ?',
+      answer: 'Oui, vous pouvez upgrader ou downgrader votre plan à tout moment. Les changements prennent effet immédiatement.'
     },
     {
-      question: "Y a-t-il une période d'essai gratuite ?",
-      answer: "Oui, tous les plans payants incluent 14 jours d'essai gratuit. Aucune carte bancaire requise."
+      question: 'Que se passe-t-il si je dépasse ma limite d\'emails ?',
+      answer: 'Nous vous notifierons lorsque vous approchez de votre limite. Vous pourrez upgrader votre plan ou attendre le mois suivant.'
     },
     {
-      question: "Que se passe-t-il si je dépasse ma limite d'emails ?",
-      answer: "Nous vous préviendrons à 80% de votre quota. Au-delà, le service continue mais vous serez invité à upgrader."
+      question: 'Y a-t-il une période d\'essai gratuite ?',
+      answer: 'Le plan gratuit vous permet de tester toutes les fonctionnalités de base. Les plans payants offrent 14 jours d\'essai gratuit.'
     },
     {
-      question: "Mes données sont-elles sécurisées ?",
-      answer: "Absolument. Nous utilisons un chiffrement de niveau bancaire et sommes conformes aux réglementations RGPD."
+      question: 'Comment annuler mon abonnement ?',
+      answer: 'Vous pouvez annuler votre abonnement à tout moment depuis vos paramètres. Aucun frais d\'annulation.'
     },
     {
-      question: "Puis-je annuler mon abonnement ?",
-      answer: "Oui, vous pouvez annuler à tout moment. Votre accès continue jusqu'à la fin de votre période de facturation."
+      question: 'Mes données sont-elles sécurisées ?',
+      answer: 'Oui, nous utilisons un chiffrement de niveau bancaire et ne stockons jamais le contenu complet de vos emails.'
     }
-  ]
-
-  const comparisonFeatures = [
-    { feature: "Emails traités par mois", free: "500", pro: "5 000", enterprise: "Illimité" },
-    { feature: "Catégories personnalisées", free: "5", pro: "Illimitées", enterprise: "Illimitées" },
-    { feature: "IA avancée", free: "Basique", pro: "Avancée", enterprise: "Personnalisée" },
-    { feature: "Synchronisation", free: "Quotidienne", pro: "Temps réel", enterprise: "Temps réel" },
-    { feature: "Analytics", free: "❌", pro: "✅", enterprise: "✅ Avancés" },
-    { feature: "API", free: "❌", pro: "Basique", enterprise: "Complète" },
-    { feature: "Support", free: "Email", pro: "Prioritaire", enterprise: "24/7 Dédié" },
-    { feature: "Collaboration", free: "❌", pro: "❌", enterprise: "✅" }
   ]
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <motion.div
-          className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl"
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 30,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          style={{ left: '-10%', top: '30%' }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative bg-white/90 backdrop-blur-xl border-b border-gray-100/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-6">
-              <button
-                onClick={() => onNavigate('home')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>Retour</span>
-              </button>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold">Ordo</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => onNavigate('login')}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
-            >
-              Se connecter
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="relative py-20 lg:py-24">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
+      {/* Hero Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.h1
+            className="text-5xl md:text-6xl font-bold mb-8"
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto mb-20"
           >
-            <h1 className="text-5xl lg:text-7xl font-bold mb-8">
-              <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Tarifs simples
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                et transparents
-              </span>
-            </h1>
-            <p className="text-2xl text-gray-600 leading-relaxed mb-8">
-              Choisissez le plan qui correspond parfaitement à vos besoins
-            </p>
-            <div className="inline-flex items-center bg-green-50 border border-green-200 rounded-full px-6 py-3 text-green-700">
-              <Star className="h-5 w-5 mr-2 text-green-500" />
-              <span className="font-medium">14 jours d'essai gratuit sur tous les plans payants</span>
-            </div>
-          </motion.div>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Tarifs simples
+            </span>
+            <br />
+            <span className="text-gray-900">et transparents</span>
+          </motion.h1>
+          
+          <motion.p
+            className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+          >
+            Choisissez le plan qui correspond à vos besoins. 
+            Commencez gratuitement et évoluez selon votre usage.
+          </motion.p>
+        </div>
+      </section>
 
-          {/* Pricing Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
+      {/* Pricing Cards */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-8">
             {plans.map((plan, index) => (
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`relative bg-white rounded-3xl p-8 shadow-2xl border transition-all duration-300 hover:shadow-3xl ${
-                  plan.highlighted
-                    ? 'ring-2 ring-blue-500 scale-105 shadow-blue-500/20'
-                    : 'border-gray-200 hover:border-gray-300'
+                key={plan.name}
+                className={`relative bg-white rounded-3xl p-8 shadow-lg ${
+                  plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''
                 }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
-                      ⭐ Plus populaire
-                    </div>
+                    <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                      Le plus populaire
+                    </span>
                   </div>
                 )}
                 
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  <p className="text-gray-600 mb-6">{plan.description}</p>
-                  
-                  <div className="mb-6">
-                    <span className="text-5xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600 text-lg">{plan.period}</span>
+                  <p className="text-gray-600 mb-4">{plan.description}</p>
+                  <div className="flex items-baseline justify-center">
+                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                    <span className="text-gray-600 ml-1">{plan.period}</span>
                   </div>
-
-                  <motion.button
-                    onClick={() => onNavigate('login')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`w-full py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-300 ${
-                      plan.highlighted
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-xl hover:shadow-2xl'
-                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                    }`}
-                  >
-                    {plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Essayer 14 jours gratuits'}
-                  </motion.button>
                 </div>
 
-                <ul className="space-y-4">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start">
-                      <Check className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+                <ul className="space-y-4 mb-8">
+                  {plan.features.map((feature, featureIndex) => (
+                    <li key={featureIndex} className="flex items-start">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
                       <span className="text-gray-700">{feature}</span>
                     </li>
                   ))}
+                  {plan.notIncluded.map((feature, featureIndex) => (
+                    <li key={featureIndex} className="flex items-start opacity-50">
+                      <X className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
+                      <span className="text-gray-500">{feature}</span>
+                    </li>
+                  ))}
                 </ul>
+
+                <button
+                  onClick={handleGoogleAuth}
+                  className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 ${
+                    plan.popular
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg hover:scale-105'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  {plan.cta}
+                </button>
               </motion.div>
             ))}
           </div>
-
-          {/* Comparison Table */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="mb-20"
-          >
-            <h2 className="text-4xl font-bold text-center text-gray-900 mb-12">
-              Comparaison détaillée
-            </h2>
-            
-            <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-6 px-8 font-bold text-gray-900">Fonctionnalités</th>
-                      <th className="text-center py-6 px-6 font-bold text-gray-900">Gratuit</th>
-                      <th className="text-center py-6 px-6 font-bold text-blue-600 bg-blue-50">Pro</th>
-                      <th className="text-center py-6 px-6 font-bold text-gray-900">Enterprise</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {comparisonFeatures.map((item, index) => (
-                      <tr key={index} className="border-t border-gray-100">
-                        <td className="py-4 px-8 font-medium text-gray-900">{item.feature}</td>
-                        <td className="py-4 px-6 text-center text-gray-600">{item.free}</td>
-                        <td className="py-4 px-6 text-center text-blue-600 bg-blue-50/50 font-semibold">{item.pro}</td>
-                        <td className="py-4 px-6 text-center text-gray-600">{item.enterprise}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* FAQ */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl font-bold text-center text-gray-900 mb-12">
-              Questions fréquentes
-            </h2>
-            
-            <div className="max-w-4xl mx-auto space-y-6">
-              {faqs.map((faq, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-2xl p-8 shadow-xl border border-gray-200"
-                >
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">{faq.question}</h3>
-                  <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="relative py-20 bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="max-w-4xl mx-auto text-center px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Prêt à commencer avec <span className="text-blue-600">Ordo</span> ?
+      {/* Comparison Table */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Comparaison détaillée
             </h2>
-            <p className="text-xl text-gray-600 mb-10">
-              Rejoignez plus de 50 000 utilisateurs qui font confiance à Ordo
+            <p className="text-xl text-gray-600">
+              Toutes les fonctionnalités en un coup d'œil
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => onNavigate('login')}
-                className="px-10 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl font-bold text-xl shadow-xl hover:shadow-2xl transition-all duration-300"
-              >
-                Commencer gratuitement
-              </button>
-              <button
-                onClick={() => onNavigate('features')}
-                className="px-10 py-4 bg-white text-gray-900 rounded-2xl font-bold text-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300"
-              >
-                Voir les fonctionnalités
-              </button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left py-4 px-6 font-medium text-gray-900">Fonctionnalités</th>
+                    <th className="text-center py-4 px-6 font-medium text-gray-900">Gratuit</th>
+                    <th className="text-center py-4 px-6 font-medium text-gray-900">Pro</th>
+                    <th className="text-center py-4 px-6 font-medium text-gray-900">Entreprise</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr>
+                    <td className="py-4 px-6 text-gray-700">Emails par mois</td>
+                    <td className="py-4 px-6 text-center text-gray-600">100</td>
+                    <td className="py-4 px-6 text-center text-gray-600">5 000</td>
+                    <td className="py-4 px-6 text-center text-gray-600">Illimité</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-6 text-gray-700">Catégories personnalisées</td>
+                    <td className="py-4 px-6 text-center text-gray-600">3</td>
+                    <td className="py-4 px-6 text-center text-gray-600">Illimitées</td>
+                    <td className="py-4 px-6 text-center text-gray-600">Illimitées</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-6 text-gray-700">Classification automatique</td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-6 text-gray-700">Intégrations</td>
+                    <td className="py-4 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 px-6 text-gray-700">API</td>
+                    <td className="py-4 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                    <td className="py-4 px-6 text-center"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Questions fréquentes
+            </h2>
+            <p className="text-xl text-gray-600">
+              Tout ce que vous devez savoir sur nos tarifs
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                className="bg-white rounded-2xl p-8 shadow-sm"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
+              >
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                  {faq.question}
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {faq.answer}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Final */}
+      <section className="py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              Prêt à transformer votre gestion d'emails ?
+            </h2>
+            <button
+              onClick={handleGoogleAuth}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-medium text-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
+              Commencer gratuitement
+            </button>
           </motion.div>
         </div>
       </section>

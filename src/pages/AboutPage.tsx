@@ -1,330 +1,339 @@
 import { motion } from 'framer-motion'
-import { Mail, ArrowLeft, Users, Heart, Target, Award, Calendar } from 'lucide-react'
+import { Users, Target, Award, Calendar } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-interface AboutPageProps {
-  onNavigate: (page: string) => void
-}
+export function AboutPage() {
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
 
-export function AboutPage({ onNavigate }: AboutPageProps) {
   const team = [
     {
-      name: "Sarah Chen",
-      role: "CEO & Co-fondatrice",
-      avatar: "👩‍💼",
-      bio: "Ex-Google, experte en IA et machine learning. Passionnée par l'amélioration de la productivité."
+      name: 'Marie Dubois',
+      role: 'CEO & Co-fondatrice',
+      image: '👩‍💼',
+      bio: 'Ex-Product Manager chez Google, passionnée par l\'IA et la productivité.'
     },
     {
-      name: "Marc Dubois",
-      role: "CTO & Co-fondateur",
-      avatar: "👨‍💻",
-      bio: "Architecte logiciel senior, spécialiste en sécurité et scalabilité des systèmes distribués."
+      name: 'Thomas Martin',
+      role: 'CTO & Co-fondateur',
+      image: '👨‍💻',
+      bio: 'Ingénieur machine learning avec 10 ans d\'expérience chez Microsoft.'
     },
     {
-      name: "Lisa Rodriguez",
-      role: "Head of Design",
-      avatar: "👩‍🎨",
-      bio: "Designer UX/UI primée, ancienne Apple. Créatrice d'interfaces élégantes et intuitives."
+      name: 'Sophie Chen',
+      role: 'Head of Design',
+      image: '👩‍🎨',
+      bio: 'Designer UX/UI primée, ancienne de Figma et Notion.'
     },
     {
-      name: "Thomas Martin",
-      role: "Lead AI Engineer",
-      avatar: "🧠",
-      bio: "PhD en Intelligence Artificielle, spécialisé dans le traitement du langage naturel."
+      name: 'Alex Rodriguez',
+      role: 'Lead Developer',
+      image: '👨‍🔬',
+      bio: 'Full-stack developer expert en React et intelligence artificielle.'
     }
   ]
 
   const values = [
     {
-      icon: <Target className="h-8 w-8" />,
-      title: "Mission",
-      description: "Révolutionner la gestion des emails en rendant l'IA accessible à tous les professionnels"
+      icon: <Users className="h-8 w-8" />,
+      title: 'Centré utilisateur',
+      description: 'Nous plaçons nos utilisateurs au cœur de chaque décision produit.'
     },
     {
-      icon: <Heart className="h-8 w-8" />,
-      title: "Vision",
-      description: "Un monde où chaque professionnel peut se concentrer sur ce qui compte vraiment"
+      icon: <Target className="h-8 w-8" />,
+      title: 'Simplicité',
+      description: 'Nous croyons que la technologie doit être simple et accessible à tous.'
     },
     {
       icon: <Award className="h-8 w-8" />,
-      title: "Valeurs",
-      description: "Innovation, simplicité, sécurité et respect de la vie privée"
+      title: 'Excellence',
+      description: 'Nous visons l\'excellence dans tout ce que nous créons.'
     }
   ]
 
   const timeline = [
     {
-      year: "2023",
-      title: "Création d'Ordo",
-      description: "Lancement de l'entreprise avec une équipe de 4 passionnés"
+      year: '2023',
+      title: 'Naissance de l\'idée',
+      description: 'Constat du chaos des boîtes emails et première ébauche de solution IA.'
     },
     {
-      year: "2024",
-      title: "Premier prototype",
-      description: "Développement de la première version de notre IA de classification"
+      year: '2024',
+      title: 'Développement',
+      description: 'Création de l\'algorithme de classification et premiers tests utilisateurs.'
     },
     {
-      year: "2024",
-      title: "Lancement Beta",
-      description: "100 premiers utilisateurs testent Ordo avec des retours exceptionnels"
+      year: '2025',
+      title: 'Lancement',
+      description: 'Lancement public d\'Ordo et accueil de nos premiers utilisateurs.'
     },
     {
-      year: "2025",
-      title: "Lancement public",
-      description: "Ouverture au grand public et croissance rapide à 50k+ utilisateurs"
+      year: '2026',
+      title: 'Expansion',
+      description: 'Nouvelles fonctionnalités et expansion internationale prévue.'
     }
   ]
 
   const stats = [
-    { number: "50k+", label: "Utilisateurs actifs" },
-    { number: "2M+", label: "Emails traités" },
-    { number: "98%", label: "Satisfaction client" },
-    { number: "15", label: "Pays couverts" }
+    { number: '10K+', label: 'Utilisateurs actifs' },
+    { number: '1M+', label: 'Emails classifiés' },
+    { number: '95%', label: 'Précision IA' },
+    { number: '4.8/5', label: 'Note utilisateurs' }
   ]
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <motion.div
-          className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl"
-          animate={{
-            x: [0, 50, 0],
-            y: [0, -30, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          style={{ right: '-10%', top: '10%' }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative bg-white/90 backdrop-blur-xl border-b border-gray-100/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-6">
-              <button
-                onClick={() => onNavigate('home')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>Retour</span>
-              </button>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold">Ordo</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => onNavigate('login')}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+      {/* Hero Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <motion.h1
+              className="text-5xl md:text-6xl font-bold mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
             >
-              Se connecter
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="relative py-20 lg:py-24">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto mb-20"
-          >
-            <h1 className="text-5xl lg:text-7xl font-bold mb-8">
-              <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Notre histoire
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Notre mission
               </span>
               <br />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                commence ici
-              </span>
-            </h1>
-            <p className="text-2xl text-gray-600 leading-relaxed">
-              Découvrez l'équipe passionnée qui révolutionne la gestion d'emails
-            </p>
-          </motion.div>
+              <span className="text-gray-900">Simplifier vos emails</span>
+            </motion.h1>
+            
+            <motion.p
+              className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+            >
+              Chez Ordo, nous croyons que chacun devrait pouvoir se concentrer sur ce qui compte vraiment, 
+              sans être submergé par le chaos de sa boîte email.
+            </motion.p>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto mb-20"
-          >
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
-                <div className="text-gray-600 font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </motion.div>
+            <motion.div
+              className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              {stats.map((stat, index) => (
+                <div key={index} className="text-center">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                    {stat.number}
+                  </div>
+                  <div className="text-gray-600">{stat.label}</div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Mission, Vision, Values */}
-      <section className="relative py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Ce qui nous guide
+      {/* Story Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                Comment tout a commencé
+              </h2>
+              <div className="space-y-4 text-gray-600 leading-relaxed">
+                <p>
+                  En 2023, nos fondateurs Marie et Thomas ont réalisé qu'ils passaient 
+                  des heures chaque jour à trier leurs emails. Malgré leurs expertises 
+                  respectives chez Google et Microsoft, ils n'arrivaient pas à maîtriser 
+                  le flux constant de messages.
+                </p>
+                <p>
+                  C'est alors qu'ils ont eu l'idée d'utiliser l'intelligence artificielle 
+                  pour automatiser ce processus fastidieux. Non pas pour remplacer 
+                  l'humain, mais pour lui redonner le contrôle sur sa communication.
+                </p>
+                <p>
+                  Aujourd'hui, Ordo aide des milliers d'utilisateurs à reprendre 
+                  le contrôle de leur boîte email et à se concentrer sur ce qui 
+                  compte vraiment dans leur travail et leur vie.
+                </p>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl p-8 text-white text-center">
+                <div className="text-6xl mb-4">📧</div>
+                <h3 className="text-2xl font-bold mb-4">L'idée originale</h3>
+                <p className="text-blue-100">
+                  "Et si l'IA pouvait comprendre nos emails aussi bien que nous ?"
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Values Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Nos valeurs
             </h2>
             <p className="text-xl text-gray-600">
-              Nos valeurs fondamentales qui inspirent chaque décision
+              Les principes qui guident notre travail au quotidien
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8">
             {values.map((value, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white rounded-3xl p-10 shadow-xl border border-gray-100 text-center"
+                className="text-center p-8 bg-white rounded-2xl shadow-sm border border-gray-100"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+                <div className="text-blue-600 mb-4 flex justify-center">
                   {value.icon}
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">{value.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{value.description}</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                  {value.title}
+                </h3>
+                <p className="text-gray-600">
+                  {value.description}
+                </p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Timeline */}
-      <section className="relative py-20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Notre parcours
+      {/* Team Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Notre équipe
             </h2>
             <p className="text-xl text-gray-600">
-              Les étapes clés de l'aventure Ordo
+              Les talents qui rendent Ordo possible
             </p>
-          </motion.div>
-
-          <div className="max-w-4xl mx-auto">
-            {timeline.map((event, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className={`relative flex items-center mb-12 ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
-              >
-                <div className={`w-1/2 ${index % 2 === 0 ? 'pr-8' : 'pl-8'}`}>
-                  <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
-                    <div className="text-blue-600 font-bold text-lg mb-2">{event.year}</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">{event.title}</h3>
-                    <p className="text-gray-600">{event.description}</p>
-                  </div>
-                </div>
-                
-                <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-600 rounded-full border-4 border-white shadow-lg z-10"></div>
-                
-                <div className="w-1/2"></div>
-              </motion.div>
-            ))}
-            
-            {/* Timeline line */}
-            <div className="absolute left-1/2 transform -translate-x-0.5 w-0.5 h-full bg-blue-200 -z-10"></div>
           </div>
-        </div>
-      </section>
 
-      {/* Team */}
-      <section className="relative py-20 bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Rencontrez l'équipe
-            </h2>
-            <p className="text-xl text-gray-600">
-              Les experts passionnés derrière Ordo
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 text-center"
+                className="text-center bg-white rounded-2xl p-6 shadow-sm"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
               >
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-                  {member.avatar}
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{member.name}</h3>
-                <div className="text-blue-600 font-semibold mb-4">{member.role}</div>
-                <p className="text-gray-600 text-sm leading-relaxed">{member.bio}</p>
+                <div className="text-6xl mb-4">{member.image}</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {member.name}
+                </h3>
+                <p className="text-blue-600 font-medium mb-4">
+                  {member.role}
+                </p>
+                <p className="text-gray-600 text-sm">
+                  {member.bio}
+                </p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Contact CTA */}
-      <section className="relative py-20">
-        <div className="max-w-4xl mx-auto text-center px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Prêt à rejoindre l'aventure <span className="text-blue-600">Ordo</span> ?
+      {/* Timeline Section */}
+      <section className="py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Notre parcours
             </h2>
-            <p className="text-xl text-gray-600 mb-10">
-              Découvrez comment nous pouvons transformer votre productivité
+            <p className="text-xl text-gray-600">
+              Les étapes clés de notre aventure
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => onNavigate('login')}
-                className="px-10 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl font-bold text-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+          </div>
+
+          <div className="space-y-8">
+            {timeline.map((event, index) => (
+              <motion.div
+                key={index}
+                className="flex items-start space-x-8"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
               >
-                Essayer Ordo
-              </button>
-              <button className="px-10 py-4 bg-white text-gray-900 rounded-2xl font-bold text-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                Nous contacter
-              </button>
-            </div>
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                    <Calendar className="h-6 w-6" />
+                  </div>
+                </div>
+                <div className="flex-grow">
+                  <div className="flex items-center space-x-4 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {event.title}
+                    </h3>
+                    <span className="text-blue-600 font-medium">
+                      {event.year}
+                    </span>
+                  </div>
+                  <p className="text-gray-600">
+                    {event.description}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="text-3xl font-bold text-white mb-8">
+              Rejoignez-nous dans cette aventure
+            </h2>
+            <p className="text-xl text-blue-100 mb-8">
+              Découvrez comment Ordo peut transformer votre gestion d'emails
+            </p>
+            <button
+              onClick={handleGoogleAuth}
+              className="bg-white text-blue-600 px-8 py-4 rounded-xl font-medium text-lg hover:bg-gray-50 transition-colors duration-200"
+            >
+              Essayer Ordo gratuitement
+            </button>
           </motion.div>
         </div>
       </section>
