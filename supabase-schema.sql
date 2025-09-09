@@ -123,6 +123,20 @@ CREATE INDEX idx_categories_user_id ON public.categories(user_id);
 CREATE INDEX idx_attachments_email_id ON public.email_attachments(email_id);
 CREATE INDEX idx_sync_history_user_id ON public.sync_history(user_id);
 
+-- Vue pour les catégories avec nombre d'emails
+CREATE VIEW public.categories_with_count AS
+SELECT 
+  c.*,
+  COALESCE(e.emails_count, 0) AS emails_count
+FROM public.categories c
+LEFT JOIN (
+  SELECT 
+    category_id,
+    COUNT(*) AS emails_count
+  FROM public.emails
+  GROUP BY category_id
+) e ON c.id = e.category_id;
+
 -- RLS (Row Level Security) Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;

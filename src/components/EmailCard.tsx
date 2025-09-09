@@ -51,7 +51,7 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
                 <div className="flex items-center space-x-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium text-foreground truncate">
-                    {email.sender}
+                    {email.sender_name}
                   </span>
                   {email.category && (
                     <span 
@@ -110,7 +110,7 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
 
               {/* Aperçu du contenu */}
               <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                {email.snippet || email.body?.substring(0, 120) + "..."}
+                {email.snippet || email.body_text?.substring(0, 120) + "..."}
               </p>
 
               {/* Pièces jointes */}

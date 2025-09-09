@@ -107,7 +107,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard user={{ email: user.email || '', subscription_type: 'free' }} onLogout={() => {}} />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />

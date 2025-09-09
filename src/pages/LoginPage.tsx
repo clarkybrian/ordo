@@ -1,11 +1,9 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+
 import { Mail, Shield, Zap, Users, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export function LoginPage() {
-  const navigate = useNavigate()
-
   const handleGoogleAuth = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({

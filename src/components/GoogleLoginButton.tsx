@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { signInWithGoogle } from "@/services/auth";
+import { Button } from "./ui/button";
+import { signInWithGoogle } from "../services/auth";
 import { FaGoogle } from "react-icons/fa";
 import { motion } from "framer-motion";
 

@@ -3,12 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Edit3, Trash2, FolderOpen } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { supabase } from '../lib/supabase'
+import { emailSyncService } from '../services/emailSync'
 import type { Category } from '../types'
 
 export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null)
   const [newCategory, setNewCategory] = useState({
     name: '',
     color: '#3b82f6',
@@ -22,40 +25,79 @@ export function CategoriesPage() {
   ]
 
   useEffect(() => {
-    // Mock data pour la démo
-    setTimeout(() => {
-      setCategories([
-        { id: '1', user_id: '1', name: 'Factures', color: '#ef4444', icon: '📄', created_at: '2025-01-01', emails_count: 12 },
-        { id: '2', user_id: '1', name: 'Billets', color: '#3b82f6', icon: '🎫', created_at: '2025-01-01', emails_count: 3 },
-        { id: '3', user_id: '1', name: 'Banque', color: '#10b981', icon: '🏦', created_at: '2025-01-01', emails_count: 8 },
-        { id: '4', user_id: '1', name: 'Travail', color: '#f59e0b', icon: '💼', created_at: '2025-01-01', emails_count: 15 },
-        { id: '5', user_id: '1', name: 'Personnel', color: '#8b5cf6', icon: '👤', created_at: '2025-01-01', emails_count: 22 }
-      ])
-      setIsLoading(false)
-    }, 500)
+    loadUserAndCategories()
   }, [])
 
-  const handleCreateCategory = () => {
-    if (newCategory.name.trim()) {
-      const category: Category = {
-        id: Date.now().toString(),
-        user_id: '1',
-        name: newCategory.name.trim(),
-        color: newCategory.color,
-        icon: newCategory.icon,
-        created_at: new Date().toISOString(),
-        emails_count: 0
+  const loadUserAndCategories = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Récupérer l'utilisateur actuel
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.error('Utilisateur non connecté')
+        return
       }
       
-      setCategories([...categories, category])
+      setCurrentUser({ id: user.id })
+      
+      // Charger les catégories avec le nombre d'emails
+      const userCategories = await emailSyncService.getUserCategories(user.id)
+      setCategories(userCategories)
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des catégories:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  const handleCreateCategory = async () => {
+    if (!newCategory.name.trim() || !currentUser) return
+
+    try {
+      const { data: category, error } = await supabase
+        .from('categories')
+        .insert({
+          user_id: currentUser.id,
+          name: newCategory.name.trim(),
+          color: newCategory.color,
+          icon: newCategory.icon,
+          is_auto_generated: false
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Ajouter la nouvelle catégorie avec emails_count: 0
+      const newCategoryWithCount = { ...category, emails_count: 0 }
+      setCategories([...categories, newCategoryWithCount])
+      
+      // Reset du formulaire
       setNewCategory({ name: '', color: '#3b82f6', icon: '📁' })
       setShowCreateForm(false)
+      
+    } catch (error) {
+      console.error('Erreur lors de la création de la catégorie:', error)
+      alert('Erreur lors de la création de la catégorie')
     }
   }
 
-  const handleDeleteCategory = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) {
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
       setCategories(categories.filter(cat => cat.id !== id))
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la catégorie:', error)
+      alert('Erreur lors de la suppression de la catégorie')
     }
   }
 

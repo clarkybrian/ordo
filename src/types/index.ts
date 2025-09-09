@@ -12,10 +12,11 @@ export interface Email {
   id: string
   user_id: string
   gmail_id: string
+  thread_id: string
   subject: string
-  sender: string
+  sender_name: string
   sender_email: string
-  body: string
+  body_text: string
   snippet: string
   received_at: string
   category_id: string | null
@@ -32,7 +33,11 @@ export interface Category {
   name: string
   color: string
   icon: string
+  description?: string
+  is_default?: boolean
+  is_auto_generated?: boolean
   created_at: string
+  updated_at?: string
   emails_count?: number
 }
 

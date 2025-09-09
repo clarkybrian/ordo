@@ -1,110 +1,219 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, FolderOpen, Mail, RefreshCw, Plus } from 'lucide-react'
+import { Search, Filter, FolderOpen, Mail, RefreshCw, Plus, LogOut, User } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
+import { SyncProgressBar } from '../components/SyncProgressBar'
+import { emailSyncService, type SyncProgress } from '../services/emailSync'
+import { initializeUserDatabase } from '../scripts/initializeDatabase'
+import { supabase } from '../lib/supabase'
+import { signOut } from '../services/auth'
 import type { Email, Category } from '../types'
 
-interface DashboardProps {
-  user: {
-    email: string
-    subscription_type: 'free' | 'pro' | 'premium'
-  }
-  onLogout: () => void
-}
-
-export function Dashboard({ user, onLogout }: DashboardProps) {
+export function Dashboard() {
   const [emails, setEmails] = useState<Email[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ email: string; id: string } | null>(null)
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
+  const [showProgressBar, setShowProgressBar] = useState(false)
 
-  // Mock data pour la démo
-  useEffect(() => {
-    // Simulation de chargement des données
-    setTimeout(() => {
-      setCategories([
-        { id: '1', user_id: '1', name: 'Factures', color: '#ef4444', icon: '📄', created_at: '', emails_count: 12 },
-        { id: '2', user_id: '1', name: 'Billets', color: '#3b82f6', icon: '🎫', created_at: '', emails_count: 3 },
-        { id: '3', user_id: '1', name: 'Banque', color: '#10b981', icon: '🏦', created_at: '', emails_count: 8 },
-        { id: '4', user_id: '1', name: 'Travail', color: '#f59e0b', icon: '💼', created_at: '', emails_count: 15 }
-      ])
-
-      setEmails([
-        {
-          id: '1',
-          user_id: '1',
-          gmail_id: 'gmail1',
-          subject: 'Facture EDF - Janvier 2025',
-          sender: 'EDF',
-          sender_email: 'noreply@edf.fr',
-          body: 'Votre facture d\'électricité pour le mois de janvier...',
-          snippet: 'Votre facture d\'électricité pour le mois de janvier est disponible',
-          received_at: new Date().toISOString(),
-          category_id: '1',
-          category: { id: '1', user_id: '1', name: 'Factures', color: '#ef4444', icon: '📄', created_at: '' },
-          is_important: true,
-          is_read: false,
-          labels: ['facture'],
-          attachments: [{ id: '1', email_id: '1', filename: 'facture_edf.pdf', content_type: 'application/pdf', size: 125000, storage_path: '/storage/facture_edf.pdf' }]
-        },
-        {
-          id: '2',
-          user_id: '1',
-          gmail_id: 'gmail2',
-          subject: 'Billet SNCF - Réservation confirmée',
-          sender: 'SNCF Connect',
-          sender_email: 'noreply@sncf.fr',
-          body: 'Votre réservation de billet de train...',
-          snippet: 'Votre réservation de billet de train Paris-Lyon a été confirmée',
-          received_at: new Date(Date.now() - 86400000).toISOString(), // Hier
-          category_id: '2',
-          category: { id: '2', user_id: '1', name: 'Billets', color: '#3b82f6', icon: '🎫', created_at: '' },
-          is_important: false,
-          is_read: true,
-          labels: ['transport'],
-          attachments: []
-        },
-        {
-          id: '3',
-          user_id: '1',
-          gmail_id: 'gmail3',
-          subject: 'Relevé de compte - Décembre 2024',
-          sender: 'Crédit Agricole',
-          sender_email: 'noreply@credit-agricole.fr',
-          body: 'Votre relevé de compte mensuel...',
-          snippet: 'Votre relevé de compte mensuel est maintenant disponible',
-          received_at: new Date(Date.now() - 172800000).toISOString(), // Il y a 2 jours
-          category_id: '3',
-          category: { id: '3', user_id: '1', name: 'Banque', color: '#10b981', icon: '🏦', created_at: '' },
-          is_important: true,
-          is_read: false,
-          labels: ['banque', 'relevé'],
-          attachments: []
-        }
-      ])
-      setIsLoading(false)
-    }, 1500)
+  // Fonction de déconnexion
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut()
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error)
+      // Afficher une erreur simple sans toast
+      alert('Erreur lors de la déconnexion')
+    }
   }, [])
+
+  // Charger les données au montage du composant
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      
+      // Récupérer l'ID utilisateur
+      const { data: { user: currentUserData } } = await supabase.auth.getUser()
+      if (!currentUserData) return
+
+      setCurrentUser({ 
+        email: currentUserData.email || '', 
+        id: currentUserData.id 
+      })
+
+      // Initialiser la base de données pour l'utilisateur (créer catégories par défaut si nécessaire)
+      try {
+        await initializeUserDatabase(currentUserData.id)
+        console.log('✅ Base de données initialisée pour l\'utilisateur')
+      } catch (error) {
+        console.error('⚠️ Erreur initialisation BD (non critique):', error)
+      }
+
+      // Charger les catégories
+      const userCategories = await emailSyncService.getUserCategories(currentUserData.id)
+      setCategories(userCategories)
+
+      // Charger les emails
+      const userEmails = await emailSyncService.getUserEmails(currentUserData.id, selectedCategory, 50)
+      setEmails(userEmails as unknown as Email[])
+
+      // Charger les infos de synchronisation
+      const syncInfo = await emailSyncService.getLastSyncInfo(currentUserData.id)
+      console.log('Dernière synchronisation:', syncInfo)
+
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error)
+      // Afficher une erreur simple
+      console.error('Impossible de charger les données')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [selectedCategory])
+
+  // Synchronisation manuelle uniquement
+  const handleSync = useCallback(async () => {
+    console.log('🔄 Début de synchronisation manuelle...')
+    
+    if (isSyncing) {
+      console.log('🚫 Synchronisation déjà en cours, abandon...')
+      return
+    }
+
+    setIsSyncing(true)
+    setShowProgressBar(true)
+    setSyncProgress(null)
+
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) {
+        throw new Error('Utilisateur non connecté')
+      }
+
+      console.log('✅ Utilisateur connecté:', currentUser.email)
+
+      // Configurer le callback de progression
+      emailSyncService.setProgressCallback((progress: SyncProgress) => {
+        console.log('📊 Progression:', progress.stage, progress.progress + '%', progress.message)
+        setSyncProgress(progress)
+        
+        // Recharger les données du dashboard UNIQUEMENT après récupération réussie
+        if (progress.stage === 'fetching' && progress.progress >= 20 && progress.total_emails && progress.total_emails > 0) {
+          console.log('🔄 Rechargement des données après récupération...')
+          loadDashboardData()
+        }
+      })
+
+      // Lancer la synchronisation
+      console.log('🚀 Démarrage de la synchronisation...')
+      const result = await emailSyncService.synchronizeEmails(50)
+
+      if (result.success) {
+        console.log('✅ Synchronisation réussie:', result)
+        setSyncProgress({
+          stage: 'completed',
+          progress: 100,
+          message: `${result.new_emails} nouveaux emails classifiés avec succès !`,
+          emails_processed: result.processed_emails,
+          total_emails: result.processed_emails
+        })
+
+        // Recharger les données finales
+        setTimeout(async () => {
+          await loadDashboardData()
+          console.log('🔄 Données rechargées après synchronisation')
+        }, 1000)
+      } else {
+        console.error('❌ Échec de la synchronisation:', result.errors)
+        setSyncProgress({
+          stage: 'error',
+          progress: 0,
+          message: result.errors.join(', ') || 'Erreur de synchronisation'
+        })
+      }
+
+    } catch (error) {
+      console.error('💥 Erreur lors de la synchronisation:', error)
+      
+      setSyncProgress({
+        stage: 'error',
+        progress: 0,
+        message: error instanceof Error ? error.message : 'Erreur inconnue'
+      })
+    } finally {
+      setIsSyncing(false)
+      
+      // Masquer la barre après 4 secondes
+      setTimeout(() => {
+        console.log('🔄 Masquage de la barre de progression')
+        setShowProgressBar(false)
+        setSyncProgress(null)
+      }, 4000)
+    }
+  }, [isSyncing, loadDashboardData])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData])
+
+  // Synchronisation manuelle uniquement - DESACTIVEE automatique
+  // useEffect(() => {
+  //   let hasTriggeredAutoSync = false
+  //   let isMounted = true
+
+  //   const checkAutoSync = async () => {
+  //     try {
+  //       if (hasTriggeredAutoSync || !isMounted) return
+        
+  //       const { data: { user: currentUser } } = await supabase.auth.getUser()
+  //       if (!currentUser || !isMounted) return
+
+  //       const { data: existingEmails } = await supabase
+  //         .from('emails')
+  //         .select('id')
+  //         .eq('user_id', currentUser.id)
+  //         .limit(1)
+
+  //       const isFirstConnection = !existingEmails || existingEmails.length === 0
+        
+  //       if (isFirstConnection && !isSyncing && !showProgressBar && isMounted) {
+  //         console.log('🎯 Première connexion détectée - Démarrage de la synchronisation automatique')
+  //         hasTriggeredAutoSync = true
+          
+  //         setTimeout(() => {
+  //           if (!isSyncing && isMounted) {
+  //             handleSync()
+  //           }
+  //         }, 1500)
+  //       }
+  //     } catch (error) {
+  //       console.error('Erreur lors de la vérification auto-sync:', error)
+  //     }
+  //   }
+
+  //   const timer = setTimeout(checkAutoSync, 3000)
+    
+  //   return () => {
+  //     isMounted = false
+  //     clearTimeout(timer)
+  //   }
+  // }, [handleSync, isSyncing, showProgressBar])
+
+  console.log('🚀 Dashboard chargé - Synchronisation manuelle uniquement')
 
   const filteredEmails = emails.filter(email => {
     const matchesCategory = !selectedCategory || email.category_id === selectedCategory
     const matchesSearch = !searchQuery || 
       email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.sender.toLowerCase().includes(searchQuery.toLowerCase())
+      email.sender_name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
-  
-  const handleSync = async () => {
-    setIsSyncing(true)
-    // Simulation de synchronisation
-    setTimeout(() => {
-      setIsSyncing(false)
-    }, 2000)
-  }
   
   const unreadCount = emails.filter(e => !e.is_read).length
   const importantCount = emails.filter(e => e.is_important).length
@@ -116,7 +225,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
+                {currentUser && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full">
+                    <User className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">{currentUser.email}</span>
+                  </div>
+                )}
+              </div>
               <p className="text-gray-600">
                 {emails.length} emails • {unreadCount} non lus • {importantCount} importants
               </p>
@@ -136,6 +253,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
               <Button className="flex items-center space-x-2">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Nouvelle catégorie</span>
+              </Button>
+
+              <Button 
+                variant="outline"
+                onClick={handleSignOut}
+                className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Déconnexion</span>
               </Button>
             </div>
           </div>
@@ -295,6 +421,16 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
           </div>
         </div>
       </div>
+      
+      {/* Barre de progression pour la synchronisation */}
+      <SyncProgressBar 
+        isVisible={showProgressBar}
+        progress={syncProgress}
+        onComplete={() => {
+          setShowProgressBar(false)
+          setSyncProgress(null)
+        }}
+      />
     </div>
   )
 }

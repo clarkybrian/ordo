@@ -9,17 +9,34 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       devOptions: {
-        enabled: true,
-        // Désactive le cache de service worker en développement
-        navigateFallback: undefined,
+        enabled: false, // Désactiver PWA en développement pour éviter les erreurs
         suppressWarnings: true
       },
-      // Force à ne pas mettre en cache
       workbox: {
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: []
+      },
+      // Configuration basique du manifeste
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: 'Ordo - Email Classification',
+        short_name: 'Ordo',
+        description: 'Classificateur automatique d\'emails',
+        theme_color: '#3b82f6',
+        icons: [
+          {
+            src: 'icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
       }
     })
   ],
