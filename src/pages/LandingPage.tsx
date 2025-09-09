@@ -1,11 +1,30 @@
 import { motion } from 'framer-motion'
-import { Mail, ArrowRight, Star, Shield, Zap, Users, Check, Globe, Clock, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Mail, ArrowRight, Star, Shield, Zap, Users, Check, Clock } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-interface LandingPageProps {
-  onNavigate: (page: string) => void
-}
+export function LandingPage() {
+  const navigate = useNavigate()
 
-export function LandingPage({ onNavigate }: LandingPageProps) {
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
   const trustedBrands = [
     { name: 'Microsoft', logo: '🏢' },
     { name: 'Google', logo: '🌟' },
@@ -157,85 +176,6 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] bg-gray-900" />
       </div>
 
-      {/* Header */}
-      <header className="relative bg-white/90 backdrop-blur-xl border-b border-gray-100/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <motion.div 
-              className="flex items-center space-x-3"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <Mail className="h-6 w-6 text-white" />
-                </div>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl opacity-30"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                />
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Ordo
-              </span>
-            </motion.div>
-            
-            <motion.nav 
-              className="hidden md:flex items-center space-x-10"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <button 
-                onClick={() => onNavigate('home')} 
-                className="text-gray-900 font-semibold transition-all duration-300"
-              >
-                Accueil
-              </button>
-              <button 
-                onClick={() => onNavigate('features')} 
-                className="text-gray-600 hover:text-gray-900 transition-all duration-300 font-medium"
-              >
-                Fonctionnalités
-              </button>
-              <button 
-                onClick={() => onNavigate('pricing')} 
-                className="text-gray-600 hover:text-gray-900 transition-all duration-300 font-medium"
-              >
-                Tarifs
-              </button>
-              <button 
-                onClick={() => onNavigate('about')} 
-                className="text-gray-600 hover:text-gray-900 transition-all duration-300 font-medium"
-              >
-                À propos
-              </button>
-            </motion.nav>
-
-            <motion.button
-              onClick={() => onNavigate('login')}
-              className="relative px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 group overflow-hidden"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                initial={false}
-              />
-              <span className="relative flex items-center space-x-2">
-                <span>Se connecter</span>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </span>
-            </motion.button>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className="relative py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -285,7 +225,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16"
             >
               <motion.button
-                onClick={() => onNavigate('login')}
+                onClick={handleGoogleAuth}
                 className="relative px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-3xl font-bold text-xl shadow-2xl shadow-blue-500/25 hover:shadow-3xl hover:shadow-blue-500/30 transition-all duration-300 group overflow-hidden"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -306,7 +246,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               </motion.button>
               
               <button 
-                onClick={() => onNavigate('features')}
+                onClick={() => navigate('/features')}
                 className="text-gray-700 hover:text-gray-900 transition-colors font-bold text-xl flex items-center space-x-2 group"
               >
                 <span>Découvrir les fonctionnalités</span>
@@ -532,7 +472,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </p>
 
             <motion.button
-              onClick={() => onNavigate('login')}
+              onClick={handleGoogleAuth}
               className="relative px-12 py-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-3xl font-bold text-2xl shadow-2xl shadow-blue-500/25 hover:shadow-3xl hover:shadow-blue-500/30 transition-all duration-300 group overflow-hidden"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -578,8 +518,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <div>
               <h4 className="font-semibold mb-6 text-white">Produit</h4>
               <ul className="space-y-3 text-gray-400">
-                <li><button onClick={() => onNavigate('features')} className="hover:text-white transition-colors">Fonctionnalités</button></li>
-                <li><button onClick={() => onNavigate('pricing')} className="hover:text-white transition-colors">Tarifs</button></li>
+                <li><button onClick={() => navigate('/features')} className="hover:text-white transition-colors">Fonctionnalités</button></li>
+                <li><button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">Tarifs</button></li>
                 <li><a href="#" className="hover:text-white transition-colors">Sécurité</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">API</a></li>
               </ul>
@@ -588,7 +528,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             <div>
               <h4 className="font-semibold mb-6 text-white">Entreprise</h4>
               <ul className="space-y-3 text-gray-400">
-                <li><button onClick={() => onNavigate('about')} className="hover:text-white transition-colors">À propos</button></li>
+                <li><button onClick={() => navigate('/about')} className="hover:text-white transition-colors">À propos</button></li>
                 <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Carrières</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>

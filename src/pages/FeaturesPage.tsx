@@ -1,11 +1,30 @@
 import { motion } from 'framer-motion'
-import { Mail, ArrowLeft, Zap, Shield, Brain, Smartphone, Globe, Clock, Users, TrendingUp, Star, Check } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Mail, Zap, Shield, Brain, Smartphone, Globe, Clock, Users, TrendingUp, Star, Check } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-interface FeaturesPageProps {
-  onNavigate: (page: string) => void
-}
+export function FeaturesPage() {
+  const navigate = useNavigate()
 
-export function FeaturesPage({ onNavigate }: FeaturesPageProps) {
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
   const mainFeatures = [
     {
       icon: <Brain className="h-12 w-12" />,

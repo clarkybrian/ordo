@@ -1,12 +1,30 @@
 import { motion } from 'framer-motion'
-import { Mail, ArrowLeft, Shield, Zap, Users, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Mail, Shield, Zap, Users, CheckCircle } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
-interface LoginPageProps {
-  onLogin: () => void
-  onNavigate: (page: string) => void
-}
+export function LoginPage() {
+  const navigate = useNavigate()
 
-export function LoginPage({ onLogin, onNavigate }: LoginPageProps) {
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
   const benefits = [
     {
       icon: <Zap className="h-6 w-6" />,
@@ -76,39 +94,6 @@ export function LoginPage({ onLogin, onNavigate }: LoginPageProps) {
         />
       </div>
 
-      {/* Header */}
-      <header className="relative bg-white/80 backdrop-blur-xl border-b border-gray-100/50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-6">
-              <button
-                onClick={() => onNavigate('home')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>Retour à l'accueil</span>
-              </button>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold">Ordo</span>
-              </div>
-            </div>
-
-            <nav className="hidden md:flex items-center space-x-6 text-sm">
-              <button onClick={() => onNavigate('features')} className="text-gray-600 hover:text-gray-900 transition-colors">
-                Fonctionnalités
-              </button>
-              <button onClick={() => onNavigate('pricing')} className="text-gray-600 hover:text-gray-900 transition-colors">
-                Tarifs
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <div className="relative min-h-screen flex">
         {/* Left Side - Login Form */}
         <div className="flex-1 flex items-center justify-center px-6 lg:px-8">
@@ -133,7 +118,7 @@ export function LoginPage({ onLogin, onNavigate }: LoginPageProps) {
 
               {/* Google Login Button */}
               <motion.button
-                onClick={onLogin}
+                onClick={handleGoogleAuth}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 px-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 mb-6 flex items-center justify-center space-x-3"
