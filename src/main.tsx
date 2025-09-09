@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 // Importe le script de nettoyage du cache
-import './utils/clearCache.js'
+// import './utils/clearCache.js' // Temporairement désactivé
 
 // En développement, on permet de désactiver le service worker
 const isDev = import.meta.env.DEV

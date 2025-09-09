@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, RefreshCw, Plus } from 'lucide-react'
+import { Search, RefreshCw } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
@@ -58,10 +58,7 @@ export function EmailsPage() {
     try {
       console.log('🔄 Début de synchronisation des emails...')
       
-      const result = await emailSyncService.synchronizeEmails(
-        currentUser.id,
-        () => {} // Pas de callback de progression ici
-      )
+      const result = await emailSyncService.synchronizeEmails()
       
       console.log('✅ Synchronisation terminée:', result)
       

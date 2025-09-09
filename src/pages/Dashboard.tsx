@@ -21,6 +21,13 @@ export function Dashboard() {
   const [currentUser, setCurrentUser] = useState<{ email: string; id: string } | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
   const [showProgressBar, setShowProgressBar] = useState(false)
+  
+  // Statistiques globales
+  const [globalStats, setGlobalStats] = useState({
+    totalEmails: 0,
+    unreadEmails: 0,
+    importantEmails: 0
+  })
 
   // Fonction de déconnexion
   const handleSignOut = useCallback(async () => {
@@ -60,8 +67,13 @@ export function Dashboard() {
       const userCategories = await emailSyncService.getUserCategories(currentUserData.id)
       setCategories(userCategories)
 
-      // Charger les emails
+      // Charger les statistiques globales
+      await loadGlobalStats(currentUserData.id)
+
+      // Charger les emails pour la catégorie sélectionnée
+      console.log(`🔍 Chargement des emails pour la catégorie: ${selectedCategory || 'toutes'}`)
       const userEmails = await emailSyncService.getUserEmails(currentUserData.id, selectedCategory, 50)
+      console.log(`📧 Emails chargés: ${userEmails.length} emails pour catégorie "${selectedCategory}"`)
       setEmails(userEmails as unknown as Email[])
 
       // Charger les infos de synchronisation
@@ -76,6 +88,46 @@ export function Dashboard() {
       setIsLoading(false)
     }
   }, [selectedCategory])
+
+  // Charger les statistiques globales
+  const loadGlobalStats = async (userId: string) => {
+    try {
+      // Compter tous les emails
+      const { count: totalEmails } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      // Compter les emails non lus
+      const { count: unreadEmails } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false)
+
+      // Compter les emails importants
+      const { count: importantEmails } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_important', true)
+
+      setGlobalStats({
+        totalEmails: totalEmails || 0,
+        unreadEmails: unreadEmails || 0,
+        importantEmails: importantEmails || 0
+      })
+
+      console.log('📊 Statistiques globales:', {
+        totalEmails: totalEmails || 0,
+        unreadEmails: unreadEmails || 0,
+        importantEmails: importantEmails || 0
+      })
+
+    } catch (error) {
+      console.error('Erreur chargement statistiques globales:', error)
+    }
+  }
 
   // Synchronisation manuelle uniquement
   const handleSync = useCallback(async () => {
@@ -127,7 +179,11 @@ export function Dashboard() {
         // Recharger les données finales
         setTimeout(async () => {
           await loadDashboardData()
-          console.log('🔄 Données rechargées après synchronisation')
+          // Recharger spécifiquement les statistiques globales
+          if (currentUser?.id) {
+            await loadGlobalStats(currentUser.id)
+          }
+          console.log('🔄 Données et statistiques rechargées après synchronisation')
         }, 1000)
       } else {
         console.error('❌ Échec de la synchronisation:', result.errors)
@@ -208,15 +264,26 @@ export function Dashboard() {
   console.log('🚀 Dashboard chargé - Synchronisation manuelle uniquement')
 
   const filteredEmails = emails.filter(email => {
+    // Gestion des filtres spéciaux
+    if (selectedCategory === 'unread') {
+      return !email.is_read && (!searchQuery || 
+        email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        email.sender_name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+    
+    if (selectedCategory === 'important') {
+      return email.is_important && (!searchQuery || 
+        email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        email.sender_name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+    
+    // Filtre par catégorie normale
     const matchesCategory = !selectedCategory || email.category_id === selectedCategory
     const matchesSearch = !searchQuery || 
       email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       email.sender_name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
-  
-  const unreadCount = emails.filter(e => !e.is_read).length
-  const importantCount = emails.filter(e => e.is_important).length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -235,7 +302,7 @@ export function Dashboard() {
                 )}
               </div>
               <p className="text-gray-600">
-                {emails.length} emails • {unreadCount} non lus • {importantCount} importants
+                {selectedCategory ? `${emails.length} emails dans cette sélection` : `${globalStats.totalEmails} emails au total`} • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
               </p>
             </div>
             
@@ -287,7 +354,7 @@ export function Dashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <span>Tous les emails</span>
-                      <span className="text-sm">{emails.length}</span>
+                      <span className="text-sm">{globalStats.totalEmails}</span>
                     </div>
                   </motion.button>
                   
@@ -295,11 +362,15 @@ export function Dashboard() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedCategory('unread')}
-                    className={`w-full text-left p-3 rounded-lg transition-colors hover:bg-gray-100`}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      selectedCategory === 'unread'
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-gray-100'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <span>Non lus</span>
-                      <span className="text-sm">{unreadCount}</span>
+                      <span className="text-sm">{globalStats.unreadEmails}</span>
                     </div>
                   </motion.button>
                   
@@ -307,11 +378,15 @@ export function Dashboard() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedCategory('important')}
-                    className={`w-full text-left p-3 rounded-lg transition-colors hover:bg-gray-100`}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      selectedCategory === 'important'
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-gray-100'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <span>Importants</span>
-                      <span className="text-sm">{importantCount}</span>
+                      <span className="text-sm">{globalStats.importantEmails}</span>
                     </div>
                   </motion.button>
                 </div>
@@ -322,7 +397,10 @@ export function Dashboard() {
                 </h2>
                 <div className="space-y-2">
 
-                  {categories.map((category) => (
+                  {/* Filtrer les catégories avec au moins 1 email */}
+                  {categories
+                    .filter(category => (category.emails_count || 0) > 0)
+                    .map((category) => (
                     <motion.button
                       key={category.id}
                       whileHover={{ scale: 1.02 }}
@@ -339,7 +417,7 @@ export function Dashboard() {
                           <span>{category.icon}</span>
                           <span>{category.name}</span>
                         </div>
-                        <span className="text-sm">{category.emails_count}</span>
+                        <span className="text-sm">{category.emails_count || 0}</span>
                       </div>
                     </motion.button>
                   ))}

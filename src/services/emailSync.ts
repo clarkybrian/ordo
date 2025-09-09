@@ -166,17 +166,44 @@ class EmailSyncService {
           // Classifier l'email
           const classification = await classificationService.classifyEmail(email, categories);
           
-          let categoryId = classification.category_id;
+          let categoryId = classification.category_id || '';
           
           // Si c'est une catégorie auto-générée, la créer si nécessaire
           if (categoryId.startsWith('auto_')) {
-            const categoryName = categoryId.replace('auto_', '');
-            const newCategory = await classificationService.createCategoryIfNotExists(
-              categoryName.charAt(0).toUpperCase() + categoryName.slice(1),
-              user.id
-            );
-            categoryId = newCategory.id;
-            result.created_categories++;
+            const categoryName = categoryId.replace('auto_', '').replace(/_/g, ' ');
+            
+            // Récupérer les informations de la catégorie suggérée
+            const suggestedCategory = classification.suggested_categories?.[0];
+            
+            if (suggestedCategory) {
+              console.log(`🆕 Création automatique de la catégorie: "${suggestedCategory.name}"`);
+              
+              const { data: newCategory, error } = await supabase
+                .from('categories')
+                .insert({
+                  user_id: user.id,
+                  name: suggestedCategory.name,
+                  color: suggestedCategory.color,
+                  icon: suggestedCategory.icon,
+                  description: `Catégorie créée automatiquement`,
+                  is_default: false,
+                  is_auto_generated: true
+                })
+                .select()
+                .single();
+
+              if (!error && newCategory) {
+                categoryId = newCategory.id;
+                result.created_categories++;
+                console.log(`✅ Catégorie "${suggestedCategory.name}" créée avec succès`);
+                
+                // Ajouter à la liste des catégories pour éviter les duplicatas
+                categories.push(newCategory);
+              } else {
+                console.error(`❌ Erreur création catégorie "${suggestedCategory.name}":`, error);
+                categoryId = ''; // Assigner à "Non classés"
+              }
+            }
           }
 
           // Sauvegarder l'email
@@ -250,16 +277,21 @@ class EmailSyncService {
 
     // Si l'utilisateur a moins de 3 catégories, créer les catégories par défaut
     if (categories.length < 3) {
-      const defaultCategories = classificationService.getDefaultCategories();
-      
-      for (const defaultCat of defaultCategories.slice(0, 5)) { // Créer les 5 premières
-        const exists = categories.find(cat => cat.name === defaultCat.name);
-        if (!exists) {
-          const newCategory = await classificationService.createCategoryIfNotExists(
-            defaultCat.name,
-            userId
-          );
-          categories.push(newCategory);
+      // Utiliser les catégories existantes ou créer une catégorie par défaut
+      if (categories.length === 0) {
+        const { data: defaultCategory, error } = await supabase
+          .from('categories')
+          .insert([{
+            name: 'Non classés',
+            color: '#6B7280',
+            icon: '📁',
+            user_id: userId
+          }])
+          .select()
+          .single();
+
+        if (!error && defaultCategory) {
+          categories.push(defaultCategory);
         }
       }
     }
@@ -270,6 +302,7 @@ class EmailSyncService {
   private async saveEmail(email: ProcessedEmail, categoryId: string | null, userId: string): Promise<void> {
     try {
       console.log(`💾 Sauvegarde de l'email: "${email.subject}" (ID: ${email.gmail_id})`)
+      console.log(`📖 État lecture: is_read=${email.is_read}, is_important=${email.is_important}`)
       
       const { error } = await supabase
         .from('emails')
@@ -387,6 +420,8 @@ class EmailSyncService {
   }
 
   async getUserEmails(userId: string, categoryId?: string | null, limit: number = 50): Promise<ProcessedEmail[]> {
+    console.log(`📨 getUserEmails appelé avec: userId=${userId}, categoryId=${categoryId}, limit=${limit}`)
+    
     let query = supabase
       .from('emails')
       .select(`
@@ -398,21 +433,29 @@ class EmailSyncService {
       .limit(limit);
 
     if (categoryId === 'unread') {
+      console.log('🔍 Filtre: emails non lus (is_read = false)')
       query = query.eq('is_read', false);
     } else if (categoryId === 'important') {
+      console.log('🔍 Filtre: emails importants (is_important = true)')
       query = query.eq('is_important', true);
     } else if (categoryId && categoryId !== 'uncategorized') {
+      console.log(`🔍 Filtre: catégorie spécifique (category_id = ${categoryId})`)
       query = query.eq('category_id', categoryId);
     } else if (categoryId === 'uncategorized') {
+      console.log('🔍 Filtre: emails non catégorisés (category_id = null)')
       query = query.is('category_id', null);
+    } else {
+      console.log('🔍 Filtre: tous les emails (aucun filtre)')
     }
 
     const { data: emails, error } = await query;
 
     if (error) {
+      console.error('❌ Erreur getUserEmails:', error)
       throw new Error(`Erreur lors de la récupération des emails: ${error.message}`);
     }
 
+    console.log(`✅ getUserEmails résultat: ${emails?.length || 0} emails trouvés`)
     return emails || [];
   }
 }
