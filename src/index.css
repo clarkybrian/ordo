@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Grid pattern for background */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Custom box shadows */
+.shadow-3xl {
+  box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

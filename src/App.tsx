@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
-import { Onboarding } from './pages/Onboarding'
+import { LandingPage } from './pages/LandingPage'
+import { FeaturesPage } from './pages/FeaturesPage'
+import { PricingPage } from './pages/PricingPage'
+import { AboutPage } from './pages/AboutPage'
+import { LoginPage } from './pages/LoginPage'
 import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { EmailsPage } from './pages/EmailsPage'
@@ -42,6 +46,47 @@ function SettingsPage() {
   )
 }
 
+function PublicApp() {
+  const [currentPage, setCurrentPage] = useState('home')
+
+  const handleNavigate = (page: string) => {
+    setCurrentPage(page)
+  }
+
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+          redirectTo: window.location.origin
+        }
+      })
+      
+      if (error) {
+        console.error('Erreur lors de l\'authentification:', error.message)
+        alert('Erreur lors de la connexion. Veuillez réessayer.')
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur inattendue. Veuillez réessayer.')
+    }
+  }
+
+  switch (currentPage) {
+    case 'features':
+      return <FeaturesPage onNavigate={handleNavigate} />
+    case 'pricing':
+      return <PricingPage onNavigate={handleNavigate} />
+    case 'about':
+      return <AboutPage onNavigate={handleNavigate} />
+    case 'login':
+      return <LoginPage onLogin={handleGoogleAuth} onNavigate={handleNavigate} />
+    default:
+      return <LandingPage onNavigate={handleNavigate} />
+  }
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,26 +109,6 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleGoogleAuth = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-          redirectTo: window.location.origin
-        }
-      })
-      
-      if (error) {
-        console.error('Erreur lors de l\'authentification:', error.message)
-        alert('Erreur lors de la connexion. Veuillez réessayer.')
-      }
-    } catch (error) {
-      console.error('Erreur:', error)
-      alert('Erreur inattendue. Veuillez réessayer.')
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
@@ -93,7 +118,7 @@ function App() {
   }
 
   if (!user) {
-    return <Onboarding onGoogleAuth={handleGoogleAuth} />
+    return <PublicApp />
   }
 
   return (
