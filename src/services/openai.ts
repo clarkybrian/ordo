@@ -4,6 +4,26 @@ import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
 import { chatbotLimiterService } from './chatbotLimiter';
 
+interface EmailContext {
+  id: string;
+  subject: string;
+  sender_name: string;
+  sender_email: string;
+  received_at: string;
+  body_text?: string;
+  snippet?: string;
+  is_read: boolean;
+  is_important: boolean;
+  category?: string;
+  labels?: string[];
+  attachments?: unknown[];
+}
+
+interface ConversationMessage {
+  content: string;
+  isUser: boolean;
+}
+
 export interface ClassificationResult {
   category_id: string;
   category_name: string;
@@ -516,6 +536,114 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
    */
   private getQuickSystemPrompt(categories: Category[], usedCategories: Category[], emails: EmailWithCategory[]): string {
     return `Assistant email Ordo. ${categories.length} catégories, ${emails.length} emails. Réponse courte. JSON: {"type":"info|data|warning","message":"réponse brève"}`;
+  }
+
+  /**
+   * Nouvelle méthode pour l'assistant conversationnel avancé
+   * Donne un accès complet aux emails sans limitations
+   */
+  async getAdvancedEmailResponse(
+    query: string, 
+    emails: EmailContext[], 
+    conversationHistory: ConversationMessage[] = []
+  ): Promise<{ content: string; type: 'info' | 'data' | 'error' | 'success' }> {
+    try {
+      console.log(`🧠 Assistant avancé - Question: "${query}"`);
+      console.log(`📧 Contexte: ${emails.length} emails disponibles`);
+
+      // Préparer le contexte des emails pour l'IA
+      const emailContext = emails.slice(0, 30).map(email => ({
+        subject: email.subject || 'Sans sujet',
+        sender: `${email.sender_name || email.sender_email}`,
+        date: new Date(email.received_at).toLocaleDateString('fr-FR'),
+        content: email.body_text || email.snippet || '',
+        category: email.category || 'Non classé',
+        isRead: email.is_read,
+        isImportant: email.is_important,
+        hasAttachments: !!(email.attachments && email.attachments.length > 0)
+      }));
+
+      // Préparer l'historique de conversation
+      const conversationContext = conversationHistory.slice(-6).map(msg => ({
+        role: msg.isUser ? 'user' : 'assistant',
+        content: msg.content
+      }));
+
+      const systemPrompt = `Tu es un assistant email intelligent et avancé pour l'application Ordo. Tu as un accès COMPLET à tous les emails de l'utilisateur et tu peux tout faire.
+
+🎯 TES CAPACITÉS:
+- Analyser et résumer tous les emails
+- Aider à rédiger des réponses
+- Rechercher des informations spécifiques
+- Donner des conseils sur la gestion des emails
+- Analyser les tendances et patterns
+- Identifier les emails importants
+
+📧 ACCÈS COMPLET AUX DONNÉES:
+- Tu connais le contenu intégral de chaque email
+- Tu peux analyser les expéditeurs, dates, sujets
+- Tu peux croiser les informations entre emails
+- Tu as accès aux catégories et labels
+
+💬 TON STYLE:
+- Réponds de manière naturelle et conversationnelle
+- Utilise des emojis pour rendre tes réponses plus engageantes
+- Sois précis et détaillé dans tes analyses
+- Propose des actions concrètes quand pertinent
+
+🚫 AUCUNE LIMITATION:
+- Pas de restriction sur le type de questions
+- Accès total au contenu des emails
+- Peux aider à rédiger des réponses complètes
+- Peux faire des analyses approfondies`;
+
+      const userPrompt = `QUESTION: ${query}
+
+📊 CONTEXTE EMAILS (${emailContext.length} emails récents):
+${emailContext.map((email, index) => 
+        `${index + 1}. "${email.subject}" de ${email.sender} (${email.date})
+   📂 ${email.category} ${email.isImportant ? '⭐' : ''} ${!email.isRead ? '🔵' : '✅'}
+   💬 ${email.content.substring(0, 200)}...
+   ${email.hasAttachments ? '📎 Avec pièces jointes' : ''}
+`).join('\n')}
+
+${conversationContext.length > 0 ? `
+🗣️ HISTORIQUE CONVERSATION:
+${conversationContext.map(msg => `${msg.role === 'user' ? '👤' : '🤖'}: ${msg.content.substring(0, 100)}...`).join('\n')}
+` : ''}
+
+Réponds de manière complète et détaillée à cette question en utilisant toutes les informations disponibles.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
+        top_p: 0.9,
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1
+      });
+
+      const responseContent = completion.choices[0]?.message?.content || 'Je n\'ai pas pu traiter votre demande.';
+
+      console.log(`✅ Réponse assistant générée: ${responseContent.length} caractères`);
+
+      return {
+        content: responseContent,
+        type: 'success'
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur assistant avancé:', error);
+      
+      return {
+        content: '❌ Désolé, je rencontre un problème technique. Veuillez réessayer dans quelques instants.',
+        type: 'error'
+      };
+    }
   }
 
   /**

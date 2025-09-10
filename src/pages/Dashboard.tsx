@@ -6,7 +6,7 @@ import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
 import { EmailModal } from '../components/EmailModal'
 import { SyncProgressBar } from '../components/SyncProgressBar'
-import Chatbot from '../components/Chatbot'
+import ConversationAssistant from '../components/ConversationAssistant'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
 import { supabase } from '../lib/supabase'
@@ -25,7 +25,7 @@ export function Dashboard() {
   const [currentUser, setCurrentUser] = useState<{ email: string; id: string } | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
   const [showProgressBar, setShowProgressBar] = useState(false)
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
+  const [isAssistantMinimized, setIsAssistantMinimized] = useState(true)
   
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -311,8 +311,10 @@ export function Dashboard() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Contenu principal qui se décale */}
+      <div className={`flex-1 transition-all duration-300 ${!isAssistantMinimized ? 'mr-96' : ''}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* En-tête */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -523,8 +525,15 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-      
+
+      {/* Assistant conversationnel */}
+      <ConversationAssistant 
+        isMinimized={isAssistantMinimized}
+        onToggleMinimize={() => setIsAssistantMinimized(!isAssistantMinimized)}
+      />
+
       {/* Barre de progression pour la synchronisation */}
       <SyncProgressBar 
         isVisible={showProgressBar}
@@ -533,12 +542,6 @@ export function Dashboard() {
           setShowProgressBar(false)
           setSyncProgress(null)
         }}
-      />
-
-      {/* Chatbot intelligent */}
-      <Chatbot 
-        isOpen={isChatbotOpen}
-        onToggle={() => setIsChatbotOpen(!isChatbotOpen)}
       />
 
       {/* Modal pour les détails de l'email */}
