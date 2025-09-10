@@ -23,9 +23,64 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
     })
   }
 
+  const cleanHtmlContent = (content: string) => {
+    if (!content) return ''
+    
+    // Créer un élément temporaire pour parser le HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = content
+    
+    // Supprimer les éléments indésirables
+    const elementsToRemove = tempDiv.querySelectorAll('img, script, style, object, embed, iframe, canvas, video, audio')
+    elementsToRemove.forEach(el => el.remove())
+    
+    // Supprimer les attributs de style inline pour éviter les problèmes de formatage
+    const allElements = tempDiv.querySelectorAll('*')
+    allElements.forEach(el => {
+      el.removeAttribute('style')
+      el.removeAttribute('class')
+      el.removeAttribute('id')
+    })
+    
+    // Extraire le texte en préservant les sauts de ligne
+    const extractTextWithFormatting = (element: Element): string => {
+      let text = ''
+      for (const node of element.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          text += node.textContent || ''
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const tagName = (node as Element).tagName.toLowerCase()
+          
+          // Ajouter des sauts de ligne pour les éléments de bloc
+          if (['div', 'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
+            text += extractTextWithFormatting(node as Element)
+            if (tagName !== 'br') text += '\n'
+          } else if (tagName === 'br') {
+            text += '\n'
+          } else {
+            text += extractTextWithFormatting(node as Element)
+          }
+        }
+      }
+      return text
+    }
+    
+    let cleanText = extractTextWithFormatting(tempDiv)
+    
+    // Nettoyer le texte
+    cleanText = cleanText
+      // Supprimer les lignes vides multiples
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      // Supprimer les espaces en début et fin
+      .trim()
+    
+    return cleanText
+  }
+
   const formatContent = (content: string) => {
+    const cleanedContent = cleanHtmlContent(content)
     // Remplace les \n par des <br> pour l'affichage HTML
-    return content.replace(/\n/g, '<br>')
+    return cleanedContent.replace(/\n/g, '<br>')
   }
 
   return (
@@ -136,16 +191,57 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
         <div className="border-t pt-6">
           <h3 className="text-sm font-medium text-gray-900 mb-4">Contenu de l'email</h3>
           <div className="bg-gray-50 rounded-lg p-4 max-h-[50vh] overflow-y-auto">
-            {email.body_text ? (
+            {email.content_structure?.text_content ? (
+              <div className="space-y-4">
+                {/* Affichage du texte propre structuré */}
+                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                  {email.content_structure.text_content}
+                </div>
+                
+                {/* Affichage des liens si disponibles */}
+                {email.content_structure.formatted_content?.links && email.content_structure.formatted_content.links.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-xs font-medium text-gray-500 mb-2">Liens dans cet email :</h4>
+                    <div className="space-y-1">
+                      {email.content_structure.formatted_content.links.map((link, index) => (
+                        <div key={index} className="text-xs text-blue-600">
+                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            {link.text || link.url}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Affichage des headers si disponibles */}
+                {email.content_structure.formatted_content?.headers && email.content_structure.formatted_content.headers.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-xs font-medium text-gray-500 mb-2">Titres dans cet email :</h4>
+                    <div className="space-y-1">
+                      {email.content_structure.formatted_content.headers.map((header, index) => (
+                        <div key={index} className="text-xs font-medium text-gray-700">
+                          {header}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : email.body_text ? (
               <div 
-                className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed"
+                className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-mono"
                 dangerouslySetInnerHTML={{
                   __html: formatContent(email.body_text)
                 }}
               />
+            ) : email.snippet ? (
+              <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                {email.snippet}
+              </div>
             ) : (
               <div className="text-sm text-gray-500 italic">
-                {email.snippet || "Aucun contenu disponible"}
+                Aucun contenu disponible
               </div>
             )}
           </div>

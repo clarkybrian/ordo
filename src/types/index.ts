@@ -17,6 +17,7 @@ export interface Email {
   sender_name: string
   sender_email: string
   body_text: string
+  body_html?: string
   snippet: string
   received_at: string
   category_id: string | null
@@ -25,6 +26,16 @@ export interface Email {
   is_read: boolean
   attachments?: EmailAttachment[]
   labels: string[]
+  content_structure?: {
+    has_html: boolean
+    has_plain_text: boolean
+    text_content: string
+    formatted_content?: {
+      paragraphs: string[]
+      links: Array<{ text: string; url: string }>
+      headers: string[]
+    }
+  }
 }
 
 export interface Category {
