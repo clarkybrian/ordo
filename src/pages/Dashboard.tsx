@@ -5,7 +5,6 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
 import { SyncProgressBar } from '../components/SyncProgressBar'
-import Chatbot from '../components/Chatbot'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
 import { supabase } from '../lib/supabase'
@@ -22,7 +21,6 @@ export function Dashboard() {
   const [currentUser, setCurrentUser] = useState<{ email: string; id: string } | null>(null)
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
   const [showProgressBar, setShowProgressBar] = useState(false)
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
   
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -510,12 +508,6 @@ export function Dashboard() {
           setShowProgressBar(false)
           setSyncProgress(null)
         }}
-      />
-
-      {/* Chatbot intelligent */}
-      <Chatbot 
-        isOpen={isChatbotOpen}
-        onToggle={() => setIsChatbotOpen(!isChatbotOpen)}
       />
     </div>
   )
