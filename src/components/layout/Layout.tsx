@@ -54,7 +54,7 @@ export function Layout({ user }: LayoutProps) {
       )}
       
       {/* Contenu principal */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isAssistantOpen ? 'mr-96' : ''}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isAssistantOpen ? 'mr-112' : ''}`}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

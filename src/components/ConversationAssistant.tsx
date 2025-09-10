@@ -28,7 +28,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '✨ Salut ! Je suis votre assistant email intelligent Ordo.\n\n🧠 Je connais tous vos emails par cœur et peux vous aider avec :\n\n📋 **Résumés détaillés** de vos derniers emails\n✍️ **Aide à la rédaction** de réponses\n🔍 **Recherche avancée** dans vos emails\n📊 **Analyses** de votre boîte mail\n\n💎 **4 questions par jour** - Utilisez-les bien !\n\nQue puis-je faire pour vous aujourd\'hui ?',
+      content: '✨ Salut ! Je suis votre assistant email intelligent Ordo ! 🤖\n\n🧠 Je connais tous vos emails par cœur et peux vous aider avec :\n\n📋 **Résumés détaillés** de vos derniers emails\n✍️ **Aide à la rédaction** de réponses personnalisées\n🔍 **Recherche avancée** dans toute votre boîte mail\n📊 **Analyses complètes** de vos habitudes email\n🎯 **Priorisation** des emails importants\n📅 **Gestion** de votre planning email\n💡 **Conseils** pour optimiser votre productivité\n\n💎 **4 questions par jour** - Utilisez-les bien ! 🚀\n\n🎉 Que puis-je faire pour vous aujourd\'hui ?',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
@@ -207,7 +207,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed top-0 right-0 bottom-0 w-96 bg-white shadow-2xl border-l border-gray-200 z-30 flex flex-col"
+      className="fixed top-0 right-0 bottom-0 w-112 bg-white shadow-2xl border-l border-gray-200 z-30 flex flex-col"
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
@@ -250,7 +250,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-2 bg-gray-50">
         <AnimatePresence>
           {messages.map((message) => (
             <motion.div
@@ -261,16 +261,16 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
               transition={{ duration: 0.3 }}
               className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[85%] ${message.isUser ? 'order-2' : 'order-1'}`}>
-                <div className="flex items-start space-x-2">
+              <div className={`max-w-[95%] ${message.isUser ? 'order-2' : 'order-1'}`}>
+                <div className="flex items-start space-x-1.5">
                   {!message.isUser && (
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <Bot className="h-4 w-4 text-white" />
+                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot className="h-3 w-3 text-white" />
                     </div>
                   )}
                   
                   <div className={`
-                    rounded-2xl px-4 py-3 shadow-sm
+                    rounded-xl px-3 py-2 shadow-sm
                     ${message.isUser 
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
                       : message.type === 'error'
@@ -280,17 +280,17 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
                           : 'bg-white border border-gray-200 text-gray-800'
                     }
                   `}>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    <div className="whitespace-pre-wrap text-xs leading-snug">
                       {message.content}
                     </div>
-                    <div className={`text-xs mt-2 opacity-70 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
+                    <div className={`text-xs mt-1 opacity-60 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
                       {formatTime(message.timestamp)}
                     </div>
                   </div>
 
                   {message.isUser && (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <User className="h-4 w-4 text-gray-600" />
+                    <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <User className="h-3 w-3 text-gray-600" />
                     </div>
                   )}
                 </div>
@@ -305,15 +305,15 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-start"
           >
-            <div className="flex items-start space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                <Bot className="h-4 w-4 text-white" />
+            <div className="flex items-start space-x-1.5">
+              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <Bot className="h-3 w-3 text-white" />
               </div>
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -324,7 +324,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-white border-t border-gray-200">
+      <div className="px-2 py-3 bg-white border-t border-gray-200">
         <div className="flex items-end space-x-2">
           <div className="flex-1 relative">
             <textarea
@@ -334,22 +334,22 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
               onKeyPress={handleKeyPress}
               placeholder={usage.remaining_questions > 0 ? "Posez-moi une question sur vos emails..." : "Plus de questions aujourd'hui"}
               disabled={isLoading || usage.remaining_questions <= 0}
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-32 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-24 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
               rows={1}
-              style={{ minHeight: '44px' }}
+              style={{ minHeight: '36px' }}
             />
           </div>
           <Button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading || usage.remaining_questions <= 0}
-            className="h-11 w-11 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400"
+            className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         
         {usage.remaining_questions <= 0 && (
-          <div className="mt-2 text-xs text-red-600 text-center">
+          <div className="mt-1.5 text-xs text-red-600 text-center">
             Limite quotidienne atteinte. Revenez demain !
           </div>
         )}

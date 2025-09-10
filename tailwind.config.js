@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      spacing: {
+        '112': '28rem', // 448px
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
