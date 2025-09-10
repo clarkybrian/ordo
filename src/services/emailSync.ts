@@ -446,6 +446,33 @@ class EmailSyncService {
     console.log(`✅ getUserEmails résultat: ${emails?.length || 0} emails trouvés`)
     return emails || [];
   }
+
+  /**
+   * Marque un email comme lu
+   */
+  async markEmailAsRead(emailId: string): Promise<void> {
+    try {
+      console.log(`📖 Marquage de l'email ${emailId} comme lu...`);
+
+      const { error } = await supabase
+        .from('emails')
+        .update({ 
+          is_read: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', emailId);
+
+      if (error) {
+        console.error('❌ Erreur markEmailAsRead:', error);
+        throw new Error(`Erreur lors du marquage comme lu: ${error.message}`);
+      }
+
+      console.log(`✅ Email ${emailId} marqué comme lu`);
+    } catch (error) {
+      console.error('❌ Erreur dans markEmailAsRead:', error);
+      throw error;
+    }
+  }
 }
 
 export const emailSyncService = new EmailSyncService();

@@ -1,4 +1,5 @@
-// Imports conditionnels pour éviter les erreurs dans le navigateur
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Classification simplifiée pour le navigateur
 let natural: any = null;
 let stopword: any = null;
 let stemmer: any = null;
@@ -7,9 +8,9 @@ let stemmer: any = null;
 if (typeof window === 'undefined') {
   // Code serveur - charger les vraies bibliothèques
   try {
-    natural = require('natural');
-    stopword = require('stopword');
-    stemmer = require('stemmer').stemmer;
+    natural = eval('require')('natural');
+    stopword = eval('require')('stopword');
+    stemmer = eval('require')('stemmer').stemmer;
   } catch (error) {
     console.warn('Bibliothèques ML non disponibles:', error);
   }
@@ -19,20 +20,23 @@ if (typeof window === 'undefined') {
     TfIdf: class MockTfIdf {
       addDocument() {}
       tfidfs() { return []; }
+      static tf() { return 0; }
     },
     WordTokenizer: class MockTokenizer {
+      trim(array: string[]) { return array; }
       tokenize(text: string) {
         return text.toLowerCase().split(/\s+/).filter(word => word.length > 2);
       }
     }
-  };
+  } as any;
   
   stopword = {
     removeStopwords: (tokens: string[]) => {
       const frenchStopwords = ['le', 'de', 'et', 'à', 'un', 'il', 'être', 'et', 'en', 'avoir', 'que', 'pour', 'dans', 'ce', 'son', 'une', 'sur', 'avec', 'ne', 'se', 'pas', 'tout', 'plus', 'par'];
       return tokens.filter(token => !frenchStopwords.includes(token.toLowerCase()));
-    }
-  };
+    },
+    fra: []
+  } as any;
   
   stemmer = (word: string) => {
     // Stemming simplifié pour le français
@@ -91,9 +95,9 @@ interface CategoryPattern {
 }
 
 class AdvancedClassificationService {
-  private tokenizer: natural.WordTokenizer;
-  private tfidf: natural.TfIdf;
-  private classifier: natural.LogisticRegressionClassifier | null = null;
+  private tokenizer: any;
+  private tfidf: any;
+  private classifier: any = null;
   private categoryVectors: Map<string, number[]> = new Map();
   
   // Patterns améliorés avec des poids pour la précision
@@ -172,12 +176,16 @@ class AdvancedClassificationService {
 
   constructor() {
     if (natural && natural.WordTokenizer && natural.TfIdf) {
-      this.tokenizer = new natural.WordTokenizer();
-      this.tfidf = new natural.TfIdf();
+      if (natural) {
+        this.tokenizer = new natural.WordTokenizer();
+        this.tfidf = new natural.TfIdf();
+      }
     } else {
       // Fallback pour le navigateur
-      this.tokenizer = new natural.WordTokenizer();
-      this.tfidf = new natural.TfIdf();
+      if (natural) {
+        this.tokenizer = new natural.WordTokenizer();
+        this.tfidf = new natural.TfIdf();
+      }
     }
     
     // Initialiser le classificateur
@@ -189,7 +197,7 @@ class AdvancedClassificationService {
       // Charger des données d'entraînement existantes si disponibles
       await this.loadTrainingData();
       console.log('✅ Classificateur ML initialisé');
-    } catch (error) {
+    } catch {
       console.log('⚠️ Aucune donnée d\'entraînement trouvée, utilisation des patterns prédéfinis');
     }
   }
@@ -240,10 +248,10 @@ class AdvancedClassificationService {
     
     // Tokenisation avancée
     const tokens = this.tokenizer.tokenize(text) || [];
-    const cleanTokens = stopword ? stopword.removeStopwords(tokens, (stopword as any).fra) : tokens;
+    const cleanTokens = stopword ? stopword.removeStopwords(tokens) : tokens;
     
     // Stemming
-    const stems = cleanTokens.map(token => stemmer ? stemmer(token) : token);
+    const stems = cleanTokens.map((token: string) => stemmer ? stemmer(token) : token);
     
     // Extraction d'entités avec Compromise (version simplifiée)
     const entities = this.extractSimpleEntities(text);
@@ -424,7 +432,7 @@ class AdvancedClassificationService {
       const keywordMatches = category.keywords.filter(keyword => 
         features.words.includes(keyword.toLowerCase()) ||
         email.subject.toLowerCase().includes(keyword.toLowerCase()) ||
-        features.stems.includes(stemmer(keyword))
+        (stemmer && features.stems.includes(stemmer(keyword)))
       );
       
       score += (keywordMatches.length / category.keywords.length) * 0.8;
@@ -446,7 +454,7 @@ class AdvancedClassificationService {
       features.words.includes(keyword.toLowerCase()) ||
       email.subject.toLowerCase().includes(keyword.toLowerCase()) ||
       email.body_text.toLowerCase().includes(keyword.toLowerCase()) ||
-      features.stems.includes(stemmer(keyword))
+      (stemmer && features.stems.includes(stemmer(keyword)))
     );
     
     if (keywordMatches.length > 0) {

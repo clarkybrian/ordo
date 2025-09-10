@@ -14,6 +14,14 @@ interface SidebarCategory {
   emails_count?: number;
 }
 
+interface SubmenuItem {
+  name: string;
+  path: string;
+  icon?: string;
+  color?: string;
+  count?: number;
+}
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,7 +45,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         if (error) throw error;
         
         // Filtrer les catégories qui ont des emails
-        const nonEmptyCategories = data?.filter((cat: any) => cat.emails_count && cat.emails_count > 0) || [];
+        const nonEmptyCategories = data?.filter((cat: SidebarCategory) => cat.emails_count && cat.emails_count > 0) || [];
         setCategories(nonEmptyCategories);
       } catch (error) {
         console.error('Erreur lors de la récupération des catégories:', error);
@@ -59,7 +67,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         { name: 'Tous les emails', path: '/dashboard?filter=all', count: categories.reduce((sum, cat) => sum + (cat.emails_count || 0), 0) },
         { name: 'Non lus', path: '/dashboard?filter=unread', count: 22 }, // On pourrait récupérer le vrai nombre en base
         { name: 'Importants', path: '/dashboard?filter=important', count: 0 }
-      ]
+      ] as SubmenuItem[]
     },
     {
       id: 'categories',
@@ -72,7 +80,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         icon: cat.icon,
         color: cat.color,
         count: cat.emails_count
-      }))
+      } as SubmenuItem))
     },
     {
       id: 'stats',
@@ -101,7 +109,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
       x: '-100%',
       opacity: 0,
       transition: {
-        type: 'tween',
+        type: 'tween' as const,
         duration: 0.3
       }
     },
@@ -109,7 +117,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
       x: '0%',
       opacity: 1,
       transition: {
-        type: 'tween',
+        type: 'tween' as const,
         duration: 0.3
       }
     }

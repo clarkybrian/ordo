@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { openaiService, type ChatbotResponse } from '../services/openai';
+import { chatbotCleanupService } from '../services/chatbotCleanup';
 import { Button } from './ui/button';
 
 interface ChatMessage {
@@ -21,7 +22,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '👋 Salut ! Je suis votre assistant Ordo. Je peux vous aider avec vos emails et catégories. Que souhaitez-vous savoir ?',
+      content: '🧠 Salut ! Je suis votre assistant email intelligent Ordo.\n\n✨ Je peux analyser le contenu de vos emails et vous donner des résumés détaillés !\n\n📝 **Questions détaillées** : 4 par période de 3h\n⚡ **Questions rapides** : 10 par période de 3h\n\nQue souhaitez-vous savoir sur vos emails ?',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
@@ -29,8 +30,10 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(false);
   const [stats, setStats] = useState({
     categoriesCount: 0,
+    usedCategoriesCount: 0,
     emailsCount: 0,
     lastSync: null as Date | null
   });
@@ -41,9 +44,28 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   useEffect(() => {
     if (isOpen) {
       loadStats();
+      loadRecentMessages();
       inputRef.current?.focus();
+      
+      // Rafraîchir les statistiques toutes les 30 secondes
+      const statsInterval = setInterval(loadStats, 30000);
+      
+      // Démarrer le nettoyage automatique
+      chatbotCleanupService.startAutoCleanup();
+      
+      // Nettoyage lors de la fermeture
+      return () => {
+        clearInterval(statsInterval);
+      };
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    // Nettoyage lors du démontage du composant
+    return () => {
+      chatbotCleanupService.stopAutoCleanup();
+    };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -58,18 +80,64 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [categoriesResult, emailsResult] = await Promise.all([
-        supabase.from('categories').select('id').eq('user_id', user.id),
-        supabase.from('emails').select('id, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1)
-      ]);
+      // Récupérer le nombre total de catégories
+      const { data: categories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('user_id', user.id);
+
+      // Récupérer le nombre total d'emails et le dernier
+      const { data: emails } = await supabase
+        .from('emails')
+        .select('id, category_id, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Calculer les catégories utilisées
+      const usedCategoryIds = new Set(
+        emails?.filter(email => email.category_id).map(email => email.category_id) || []
+      );
 
       setStats({
-        categoriesCount: categoriesResult.data?.length || 0,
-        emailsCount: emailsResult.data?.length || 0,
-        lastSync: emailsResult.data?.[0]?.created_at ? new Date(emailsResult.data[0].created_at) : null
+        categoriesCount: categories?.length || 0,
+        usedCategoriesCount: usedCategoryIds.size,
+        emailsCount: emails?.length || 0,
+        lastSync: emails?.[0]?.created_at ? new Date(emails[0].created_at) : null
       });
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error);
+    }
+  };
+
+  const loadRecentMessages = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Charger les messages de la dernière heure
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      
+      const { data: recentMessages } = await supabase
+        .from('chatbot_messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', oneHourAgo)
+        .order('created_at', { ascending: true });
+
+      if (recentMessages && recentMessages.length > 0) {
+        const formattedMessages: ChatMessage[] = recentMessages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          isUser: msg.is_user,
+          timestamp: new Date(msg.created_at),
+          type: msg.is_user ? undefined : ('info' as const)
+        }));
+
+        // Ajouter les messages récents après le message d'accueil
+        setMessages(prev => [prev[0], ...formattedMessages]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des messages récents:', error);
     }
   };
 
@@ -144,6 +212,10 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
           session_id: sessionId
         }
       ]);
+
+      // Limiter le nombre de messages pour éviter l'accumulation
+      await chatbotCleanupService.limitUserMessages(user.id, 100);
+
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
     }
@@ -175,10 +247,13 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   };
 
   const quickQuestions = [
-    "Combien de catégories j'ai créées ?",
-    "Quels sont mes derniers emails ?",
+    "Résume mes derniers emails importants",
+    "Quels emails demandent une action de ma part ?",
     "Résume mes emails par catégorie",
-    "Quand a eu lieu ma dernière synchronisation ?"
+    "Montre-moi le contenu de mes emails non lus",
+    "Analyse mes emails reçus aujourd'hui",
+    "Quels expéditeurs sont les plus actifs ?",
+    "Récapitulatif des emails avec pièces jointes"
   ];
 
   return (
@@ -208,14 +283,14 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
           </motion.span>
           
           {/* Badge de notification */}
-          {stats.categoriesCount > 0 && !isOpen && (
+          {stats.usedCategoriesCount > 0 && !isOpen && (
             <motion.div
               className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 1.5 }}
             >
-              {stats.categoriesCount}
+              {stats.usedCategoriesCount}
             </motion.div>
           )}
         </Button>
@@ -254,7 +329,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
               {/* Stats rapides */}
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                 <div className="bg-white/20 rounded-lg p-2 text-center">
-                  <div className="font-semibold">{stats.categoriesCount}</div>
+                  <div className="font-semibold">{stats.usedCategoriesCount}/{stats.categoriesCount}</div>
                   <div className="opacity-80">Catégories</div>
                 </div>
                 <div className="bg-white/20 rounded-lg p-2 text-center">
@@ -322,22 +397,32 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Questions rapides */}
-            {messages.length === 1 && (
-              <div className="px-4 pb-2">
-                <div className="text-xs text-gray-500 mb-2">Questions rapides :</div>
+            {/* Questions rapides - Apparaissent uniquement au focus */}
+            {showQuickQuestions && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="px-4 pb-2 bg-gray-50 border-t border-gray-100 max-h-32 overflow-y-auto"
+              >
+                <div className="text-xs text-gray-500 mb-2 pt-2">Questions rapides :</div>
                 <div className="grid grid-cols-1 gap-1">
                   {quickQuestions.map((question, index) => (
                     <button
                       key={index}
-                      onClick={() => setInputValue(question)}
-                      className="text-left text-xs bg-gray-50 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                      onClick={() => {
+                        setInputValue(question);
+                        setShowQuickQuestions(false);
+                        inputRef.current?.focus();
+                      }}
+                      className="text-left text-xs bg-white hover:bg-blue-50 hover:text-blue-700 p-2 rounded-lg transition-colors border border-gray-200"
+                      disabled={isLoading}
                     >
                       {question}
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Input */}
@@ -349,7 +434,12 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Posez votre question..."
+                  onFocus={() => setShowQuickQuestions(true)}
+                  onBlur={() => {
+                    // Délai pour permettre le clic sur les questions
+                    setTimeout(() => setShowQuickQuestions(false), 200);
+                  }}
+                  placeholder="Posez votre question... (cliquez pour voir les suggestions)"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   disabled={isLoading}
                 />

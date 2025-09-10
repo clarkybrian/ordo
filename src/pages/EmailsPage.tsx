@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, RefreshCw } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
+import { EmailDetailPanel } from '../components/EmailDetailPanel'
 import { emailSyncService } from '../services/emailSync'
 import { supabase } from '../lib/supabase'
 import type { Email, Category } from '../types'
@@ -12,6 +12,7 @@ export function EmailsPage() {
   const [emails, setEmails] = useState<Email[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -81,6 +82,27 @@ export function EmailsPage() {
     return matchesCategory && matchesSearch
   })
 
+  // Gestion de la sélection d'email
+  const handleEmailClick = useCallback(async (email: Email) => {
+    console.log(`🖱️ Clic sur l'email: "${email.subject}" de ${email.sender_name}`);
+    console.log(`🔍 Email data:`, email);
+    setSelectedEmail(email);
+    console.log(`✅ selectedEmail state mis à jour`);
+    
+    // Marquer l'email comme lu s'il ne l'est pas déjà
+    if (!email.is_read && currentUser) {
+      try {
+        console.log(`📖 Marquage de l'email comme lu...`);
+        await emailSyncService.markEmailAsRead(email.id);
+        // Recharger les données pour mettre à jour l'interface
+        await loadEmailsData();
+        console.log(`✅ Email marqué comme lu et interface mise à jour`);
+      } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour du statut de lecture:', error);
+      }
+    }
+  }, [currentUser, loadEmailsData])
+
   // Statistiques
   const unreadCount = emails.filter(e => !e.is_read).length
   const importantCount = emails.filter(e => e.is_important).length
@@ -97,185 +119,153 @@ export function EmailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Emails</h1>
-          <p className="text-gray-600 mt-2">
-            Gérez et consultez tous vos emails classifiés
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 font-semibold">{emails.length}</span>
+    <div className="h-screen bg-gray-50 flex">
+      {/* Panneau de gauche - Liste des emails */}
+      <div className={`${selectedEmail ? 'w-1/2' : 'w-full'} transition-all duration-300 flex flex-col`}>
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full px-4 sm:px-6 lg:px-8 py-6">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
+                  <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
+                    <span>{emails.length} emails au total</span>
+                    <span>•</span>
+                    <span>{unreadCount} non lus</span>
+                    <span>•</span>
+                    <span>{importantCount} importants</span>
                   </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Total emails</p>
-                  <p className="text-2xl font-semibold text-gray-900">{emails.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <span className="text-orange-600 font-semibold">{unreadCount}</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Non lus</p>
-                  <p className="text-2xl font-semibold text-gray-900">{unreadCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                    <span className="text-red-600 font-semibold">{importantCount}</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Importants</p>
-                  <p className="text-2xl font-semibold text-gray-900">{importantCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Rechercher des emails..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Category Filter */}
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={selectedCategory === null ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(null)}
-                className="whitespace-nowrap"
-              >
-                Toutes
-              </Button>
-              {categories.map((category) => (
                 <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? 'default' : 'outline'}
-                  onClick={() => setSelectedCategory(category.id)}
+                  onClick={handleSync}
+                  disabled={isSyncing}
                   className="whitespace-nowrap"
-                  style={{
-                    backgroundColor: selectedCategory === category.id ? category.color : 'transparent',
-                    borderColor: category.color,
-                    color: selectedCategory === category.id ? 'white' : category.color
-                  }}
                 >
-                  <span className="mr-1">{category.icon}</span>
-                  {category.name}
-                  <span className="ml-2 text-sm">{(category as any).emails_count || 0}</span>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Sync...' : 'Synchroniser'}
                 </Button>
-              ))}
+              </div>
             </div>
 
-            {/* Sync Button */}
-            <Button
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="whitespace-nowrap"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Sync...' : 'Synchroniser'}
-            </Button>
-          </div>
-        </div>
+            {/* Debug info */}
+            {selectedEmail && (
+              <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded">
+                <p className="text-green-800 text-sm">
+                  ✅ Email sélectionné: <strong>{selectedEmail.subject}</strong>
+                </p>
+              </div>
+            )}
 
-        {/* Email List */}
-        <div className="space-y-4">
-          <AnimatePresence mode="wait">
-            {filteredEmails.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="text-center py-12"
-              >
-                <div className="max-w-sm mx-auto">
-                  <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <Search className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Aucun email trouvé
-                  </h3>
-                  <p className="text-gray-500">
-                    {selectedCategory || searchQuery 
-                      ? 'Aucun email ne correspond à vos critères de recherche.'
-                      : 'Aucun email disponible. Synchronisez vos emails pour commencer.'
-                    }
-                  </p>
-                  {!selectedCategory && !searchQuery && (
-                    <Button onClick={handleSync} disabled={isSyncing} className="mt-4">
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                      Synchroniser maintenant
-                    </Button>
-                  )}
+            {/* Filtres et recherche */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Recherche */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher des emails..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="grid gap-4"
-              >
-                {filteredEmails.map((email, index) => (
+
+                {/* Filtres par catégorie */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={selectedCategory === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                  >
+                    Tous
+                    <span className="ml-2 text-sm">{emails.length}</span>
+                  </Button>
+                  {categories.map((category) => (
+                    <Button
+                      key={category.id}
+                      variant={selectedCategory === category.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedCategory(category.id)}
+                    >
+                      {category.name}
+                      <span className="ml-2 text-sm">{category.emails_count || 0}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Liste des emails */}
+            <div className="flex-1 overflow-y-auto">
+              <AnimatePresence mode="wait">
+                {filteredEmails.length === 0 ? (
                   <motion.div
-                    key={email.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="text-center py-12"
                   >
-                    <EmailCard email={email} />
+                    <div className="max-w-sm mx-auto">
+                      <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <Search className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        Aucun email trouvé
+                      </h3>
+                      <p className="text-gray-500">
+                        {selectedCategory || searchQuery 
+                          ? 'Aucun email ne correspond à vos critères de recherche.'
+                          : 'Aucun email disponible. Synchronisez vos emails pour commencer.'
+                        }
+                      </p>
+                    </div>
                   </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Pagination info */}
-        {filteredEmails.length > 0 && (
-          <div className="mt-8 text-center text-gray-500">
-            Affichage de {filteredEmails.length} email{filteredEmails.length > 1 ? 's' : ''}
-            {selectedCategory && categories.find(c => c.id === selectedCategory) && (
-              <span> dans la catégorie "{categories.find(c => c.id === selectedCategory)?.name}"</span>
-            )}
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-2"
+                  >
+                    {filteredEmails.map((email, index) => (
+                      <motion.div
+                        key={email.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={selectedEmail?.id === email.id ? 'bg-blue-50 rounded-lg border-blue-200' : ''}
+                      >
+                        <EmailCard 
+                          email={email} 
+                          onClick={() => handleEmailClick(email)}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Panneau de droite - Détails de l'email */}
+      <AnimatePresence>
+        {selectedEmail && (
+          <>
+            {console.log(`🎭 Rendu du panneau pour l'email:`, selectedEmail.subject)}
+            <EmailDetailPanel
+              email={selectedEmail}
+              onClose={() => {
+                console.log(`❌ Fermeture du panneau`);
+                setSelectedEmail(null);
+              }}
+            />
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

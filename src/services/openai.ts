@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { supabase } from '../lib/supabase';
 import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
+import { chatbotLimiterService } from './chatbotLimiter';
 
 export interface ClassificationResult {
   category_id: string;
@@ -24,13 +25,31 @@ interface OpenAIClassificationResponse {
   reasoning: string;
 }
 
+interface EmailSummary {
+  subject: string;
+  sender: string;
+  date: string;
+  isImportant: boolean;
+  isRead: boolean;
+  category: string;
+  content: string;
+  hasAttachments: boolean;
+}
+
 interface EmailWithCategory {
   id: string;
   subject: string;
   sender_email: string;
+  sender_name?: string;
   snippet: string;
+  body_text?: string;
+  body_html?: string;
   received_at: string;
   created_at: string;
+  is_read: boolean;
+  is_important: boolean;
+  has_attachments?: boolean;
+  labels?: string[];
   category?: {
     name: string;
     color: string;
@@ -56,7 +75,7 @@ class OpenAIService {
   }
 
   /**
-   * Classifie un email en utilisant GPT-3.5-turbo (modèle léger et économique)
+   * Classifie un email en utilisant GPT-4o-mini (modèle ultra-économique)
    */
   async classifyEmail(email: ProcessedEmail, existingCategories: Category[]): Promise<ClassificationResult> {
     try {
@@ -68,7 +87,7 @@ class OpenAIService {
       const prompt = this.buildClassificationPrompt(email, existingCategoryNames, categoryCount);
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo', // Modèle économique et rapide
+        model: 'gpt-4o-mini', // Modèle ultra-économique (60x moins cher que GPT-4)
         messages: [
           {
             role: 'system',
@@ -79,7 +98,7 @@ class OpenAIService {
             content: prompt
           }
         ],
-        max_tokens: 200,
+        max_tokens: 100, // Divisé par 2 pour économiser
         temperature: 0.1, // Faible pour des résultats plus déterministes
         response_format: { type: 'json_object' }
       });
@@ -105,34 +124,18 @@ class OpenAIService {
    * Construit le prompt pour la classification
    */
   private buildClassificationPrompt(email: ProcessedEmail, existingCategories: string[], categoryCount: number): string {
-    return `
-Analyse cet email et détermine sa catégorie :
+    return `Email:
+Expéditeur: ${email.sender_email}
+Sujet: ${email.subject}
+Contenu: ${email.snippet}
 
-**EMAIL:**
-- Expéditeur: ${email.sender_email}
-- Sujet: ${email.subject}
-- Contenu: ${email.snippet}
-- Corps: ${email.body_text.substring(0, 500)}
+Catégories: ${existingCategories.join(', ') || 'Aucune'}
 
-**CATÉGORIES EXISTANTES:** ${existingCategories.length > 0 ? existingCategories.join(', ') : 'Aucune'}
+${categoryCount >= this.MAX_CATEGORIES ? 
+  'LIMITE: Utilise catégorie existante uniquement.' : 
+  'Peut créer nouvelle catégorie (max 8).'}
 
-**RÈGLES:**
-1. ${categoryCount >= this.MAX_CATEGORIES ? 
-    'LIMITE ATTEINTE: Tu dois utiliser une catégorie existante uniquement.' : 
-    'Tu peux créer une nouvelle catégorie si nécessaire (max 8 au total).'}
-2. Privilégie les catégories existantes quand c'est pertinent
-3. Les nouvelles catégories doivent être génériques et réutilisables
-4. Utilise des noms simples et clairs (ex: "Travail", "Factures", "Banque")
-
-**RÉPONSE REQUISE (JSON):**
-{
-  "category_name": "nom de la catégorie",
-  "use_existing": true/false,
-  "confidence": 0.0-1.0,
-  "reasoning": "explication courte de ton choix"
-}
-
-Si aucune catégorie existante ne convient et que la limite est atteinte, utilise la plus proche.`;
+JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"reasoning":"court"}`;
   }
 
   /**
@@ -301,11 +304,27 @@ Si aucune catégorie existante ne convient et que la limite est atteinte, utilis
   }
 
   /**
-   * Traite les questions du chatbot
+   * Traite les questions du chatbot avec limitation et réponses détaillées
    */
   async handleChatbotQuery(query: string, userId: string): Promise<ChatbotResponse> {
     try {
       console.log(`🤖 Question chatbot: "${query}"`);
+
+      // Déterminer le type de question
+      const isDetailed = chatbotLimiterService.isDetailedQuestion(query);
+      
+      // Vérifier les limites
+      const limitCheck = isDetailed 
+        ? await chatbotLimiterService.canAskDetailedQuestion(userId)
+        : await chatbotLimiterService.canAskQuickQuestion(userId);
+
+      if (!limitCheck.allowed) {
+        const resetTime = limitCheck.resetTime?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        return {
+          message: `⏱️ Limite atteinte ! ${isDetailed ? 'Questions détaillées' : 'Questions rapides'} épuisées. Prochaine remise à zéro à ${resetTime}.`,
+          type: 'warning'
+        };
+      }
 
       // Récupérer les données utilisateur
       const [categoriesData, emailsData] = await Promise.all([
@@ -314,7 +333,10 @@ Si aucune catégorie existante ne convient et que la limite est atteinte, utilis
       ]);
 
       // Analyser la question avec OpenAI
-      const response = await this.processChatbotQuery(query, categoriesData, emailsData);
+      const response = await this.processChatbotQuery(query, categoriesData, emailsData, isDetailed);
+      
+      // Enregistrer la question posée
+      await chatbotLimiterService.recordQuestion(userId, isDetailed ? 'detailed' : 'quick');
       
       return response;
 
@@ -328,50 +350,63 @@ Si aucune catégorie existante ne convient et que la limite est atteinte, utilis
   }
 
   /**
-   * Traite la question avec OpenAI
+   * Traite la question avec OpenAI - réponses adaptées selon le type
    */
   private async processChatbotQuery(
     query: string, 
     categories: Category[], 
-    emails: EmailWithCategory[]
+    emails: EmailWithCategory[],
+    isDetailed: boolean = false
   ): Promise<ChatbotResponse> {
     
-    const systemPrompt = `Tu es un assistant intelligent qui aide à gérer les emails classifiés.
+    const usedCategories = categories.filter(c => (c.emails_count || 0) > 0);
     
-DONNÉES DISPONIBLES:
-- ${categories.length} catégories: ${categories.map(c => c.name).join(', ')}
-- ${emails.length} emails classifiés
-- Informations sur les emails et leurs catégories
+    // Préparer les données détaillées des emails pour les questions approfondies
+    const emailSummaries = emails.slice(0, 10).map(email => {
+      // Prioriser body_text, puis snippet, avec une longueur minimale décente
+      let content = '';
+      if (email.body_text && email.body_text.length > 10) {
+        content = email.body_text;
+      } else if (email.snippet && email.snippet.length > 10) {
+        content = email.snippet;
+      } else {
+        content = `Email de ${email.sender_email} avec le sujet "${email.subject}"`;
+      }
+      
+      // Garder plus de contenu pour les analyses détaillées
+      const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
+      
+      return {
+        subject: email.subject,
+        sender: email.sender_email,
+        date: new Date(email.received_at).toLocaleDateString('fr-FR'),
+        isImportant: email.is_important,
+        isRead: email.is_read,
+        category: email.category?.name || 'Non classé',
+        content: truncatedContent,
+        hasAttachments: email.has_attachments || false
+      };
+    });
 
-TYPES DE QUESTIONS QUE TU PEUX TRAITER:
-1. Statistiques (nombre de catégories, emails, etc.)
-2. Recherche d'emails par contenu, expéditeur, catégorie
-3. Informations sur les catégories
-4. Analyses des emails
+    // Prompt adapté selon le type de question
+    const systemPrompt = isDetailed ? 
+      this.getDetailedSystemPrompt(categories, emails) :
+      this.getQuickSystemPrompt(categories, usedCategories, emails);
 
-RÉPONSE REQUISE (JSON):
-{
-  "type": "info|data|warning|error",
-  "message": "réponse en français naturel",
-  "data": "données optionnelles si pertinent"
-}`;
+    const userContent = isDetailed ?
+      this.buildDetailedUserContent(query, categories, emails, emailSummaries) :
+      this.buildQuickUserContent(query, categories, usedCategories, emails);
+
+    const maxTokens = isDetailed ? 200 : 75; // Divisé par 2 pour économiser
 
     const completion = await this.openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini', // Modèle ultra-économique
       messages: [
         { role: 'system', content: systemPrompt },
-        { 
-          role: 'user', 
-          content: `Question: "${query}"
-          
-          Contexte:
-          - Catégories (${categories.length}): ${categories.map(c => `${c.name} (${c.emails_count || 0} emails)`).join(', ')}
-          - Total emails: ${emails.length}
-          - Dernière synchronisation: ${emails.length > 0 ? new Date(emails[0]?.created_at).toLocaleString('fr-FR') : 'Aucune'}`
-        }
+        { role: 'user', content: userContent }
       ],
-      max_tokens: 300,
-      temperature: 0.3,
+      max_tokens: maxTokens,
+      temperature: 0.2, // Réduit pour plus de précision
       response_format: { type: 'json_object' }
     });
 
@@ -384,7 +419,7 @@ RÉPONSE REQUISE (JSON):
   }
 
   /**
-   * Récupère les catégories de l'utilisateur
+   * Récupère les catégories de l'utilisateur avec statistiques détaillées
    */
   private async getUserCategories(userId: string): Promise<Category[]> {
     const { data, error } = await supabase
@@ -397,25 +432,119 @@ RÉPONSE REQUISE (JSON):
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    
+    // Calculer les statistiques des catégories
+    const categories = data || [];
+    
+    return categories.map(cat => ({
+      ...cat,
+      emails_count: cat.emails_count || 0,
+      is_used: (cat.emails_count || 0) > 0
+    }));
   }
 
   /**
-   * Récupère les emails de l'utilisateur
+   * Récupère les expéditeurs les plus fréquents
+   */
+  private getTopSenders(emails: EmailWithCategory[], limit: number = 5) {
+    const senderCounts = new Map<string, number>();
+    
+    emails.forEach(email => {
+      const sender = email.sender_email;
+      senderCounts.set(sender, (senderCounts.get(sender) || 0) + 1);
+    });
+    
+    return Array.from(senderCounts.entries())
+      .map(([email, count]) => ({ email, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  /**
+   * Récupère les emails de l'utilisateur avec contenu complet
    */
   private async getUserEmails(userId: string): Promise<EmailWithCategory[]> {
     const { data, error } = await supabase
       .from('emails')
       .select(`
-        *,
+        id,
+        subject,
+        sender_email,
+        sender_name,
+        snippet,
+        body_text,
+        body_html,
+        received_at,
+        created_at,
+        is_read,
+        is_important,
+        has_attachments,
+        labels,
         category:categories(name, color, icon)
       `)
       .eq('user_id', userId)
       .order('received_at', { ascending: false })
-      .limit(100); // Limiter pour éviter les réponses trop lourdes
+      .limit(50); // Limiter à 50 emails récents pour de meilleures performances
 
     if (error) throw error;
-    return data || [];
+    
+    // Transformer les données pour correspondre à l'interface
+    return (data || []).map(email => ({
+      ...email,
+      category: email.category?.[0] || undefined
+    }));
+  }
+
+  /**
+   * Prompt système pour questions détaillées
+   */
+  private getDetailedSystemPrompt(categories: Category[], emails: EmailWithCategory[]): string {
+    return `Assistant email Ordo. Analyse détaillée avec exemples concrets obligatoires.
+
+RÈGLES:
+1. Citer emails réels (sujet, expéditeur)
+2. Extraits de contenu
+3. Format: 📧 **[Sujet]** de [Expéditeur] - [Résumé court]
+
+DONNÉES: ${categories.length} catégories, ${emails.length} emails
+
+JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
+  }
+
+  /**
+   * Prompt système pour questions rapides
+   */
+  private getQuickSystemPrompt(categories: Category[], usedCategories: Category[], emails: EmailWithCategory[]): string {
+    return `Assistant email Ordo. ${categories.length} catégories, ${emails.length} emails. Réponse courte. JSON: {"type":"info|data|warning","message":"réponse brève"}`;
+  }
+
+  /**
+   * Contenu utilisateur pour questions détaillées
+   */
+  private buildDetailedUserContent(query: string, categories: Category[], emails: EmailWithCategory[], emailSummaries: EmailSummary[]): string {
+    const importantEmails = emails.filter(e => e.is_important);
+    const unreadEmails = emails.filter(e => !e.is_read);
+    
+    return `QUESTION: "${query}"
+
+📊 STATS: ${emails.length} emails, ${unreadEmails.length} non lus, ${importantEmails.length} importants
+
+📧 EMAILS:
+${emailSummaries.slice(0, 5).map(email => // Limite à 5 emails pour économiser
+  `� "${email.subject}" de ${email.sender} - ${email.category}${email.isImportant ? ' ⭐' : ''}${!email.isRead ? ' 🔵' : ''}
+   💬 "${email.content.substring(0, 100)}..."` // Limite le contenu à 100 caractères
+).join('\n')}
+
+🏷️ CATÉGORIES: ${categories.map(cat => `${cat.name}: ${cat.emails_count || 0}`).join(', ')}`;
+  }
+
+  /**
+   * Contenu utilisateur pour questions rapides
+   */
+  private buildQuickUserContent(query: string, categories: Category[], usedCategories: Category[], emails: EmailWithCategory[]): string {
+    return `"${query}"
+
+Données: ${categories.length} catégories (${usedCategories.length} utilisées), ${emails.length} emails, ${emails.filter(e => !e.is_read).length} non lus, ${emails.filter(e => e.is_important).length} importants.`;
   }
 }
 
