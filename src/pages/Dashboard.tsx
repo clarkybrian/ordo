@@ -4,6 +4,7 @@ import { Search, Filter, FolderOpen, Mail, RefreshCw, Plus, LogOut, User } from 
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
+import { EmailModal } from '../components/EmailModal'
 import { SyncProgressBar } from '../components/SyncProgressBar'
 import Chatbot from '../components/Chatbot'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
@@ -16,6 +17,8 @@ export function Dashboard() {
   const [emails, setEmails] = useState<Email[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -130,6 +133,26 @@ export function Dashboard() {
       console.error('Erreur chargement statistiques globales:', error)
     }
   }
+
+  // Gestion de la sélection d'email
+  const handleEmailClick = useCallback(async (email: Email) => {
+    console.log(`🖱️ Clic sur l'email: "${email.subject}" de ${email.sender_name}`);
+    setSelectedEmail(email);
+    setIsEmailModalOpen(true);
+    
+    // Marquer l'email comme lu s'il ne l'est pas déjà
+    if (!email.is_read && currentUser) {
+      try {
+        console.log(`📖 Marquage de l'email comme lu...`);
+        await emailSyncService.markEmailAsRead(email.id);
+        // Recharger les données pour mettre à jour l'interface
+        await loadDashboardData();
+        console.log(`✅ Email marqué comme lu et interface mise à jour`);
+      } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour du statut de lecture:', error);
+      }
+    }
+  }, [currentUser, loadDashboardData])
 
   // Synchronisation manuelle uniquement
   const handleSync = useCallback(async () => {
@@ -474,7 +497,7 @@ export function Dashboard() {
                       <EmailCard
                         key={email.id}
                         email={email}
-                        onClick={() => console.log('Ouvrir email:', email.id)}
+                        onClick={() => handleEmailClick(email)}
                         onStarClick={() => console.log('Toggle important:', email.id)}
                         onMoveCategory={() => console.log('Déplacer email:', email.id)}
                       />
@@ -516,6 +539,17 @@ export function Dashboard() {
       <Chatbot 
         isOpen={isChatbotOpen}
         onToggle={() => setIsChatbotOpen(!isChatbotOpen)}
+      />
+
+      {/* Modal pour les détails de l'email */}
+      <EmailModal
+        email={selectedEmail}
+        isOpen={isEmailModalOpen}
+        onClose={() => {
+          console.log(`❌ Fermeture du modal`);
+          setSelectedEmail(null);
+          setIsEmailModalOpen(false);
+        }}
       />
     </div>
   )
