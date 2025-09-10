@@ -539,97 +539,80 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
   }
 
   /**
-   * Nouvelle méthode pour l'assistant conversationnel avancé
-   * Donne un accès complet aux emails sans limitations
+   * Assistant conversationnel avec accès complet et autonomie totale
    */
   async getAdvancedEmailResponse(
     query: string, 
-    emails: EmailContext[], 
-    conversationHistory: ConversationMessage[] = []
-  ): Promise<{ content: string; type: 'info' | 'data' | 'error' | 'success' }> {
+    conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
+  ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
     try {
-      console.log(`🧠 Assistant avancé - Question: "${query}"`);
-      console.log(`📧 Contexte: ${emails.length} emails disponibles`);
+      // Récupération des données utilisateur
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          content: '🔐 Vous devez être connecté pour utiliser l\'assistant.',
+          type: 'error'
+        };
+      }
 
-      // Préparer le contexte des emails pour l'IA
-      const emailContext = emails.slice(0, 30).map(email => ({
-        subject: email.subject || 'Sans sujet',
-        sender: `${email.sender_name || email.sender_email}`,
-        date: new Date(email.received_at).toLocaleDateString('fr-FR'),
-        content: email.body_text || email.snippet || '',
-        category: email.category || 'Non classé',
-        isRead: email.is_read,
-        isImportant: email.is_important,
-        hasAttachments: !!(email.attachments && email.attachments.length > 0)
-      }));
+      console.log(`🤖 Assistant autonome - Question: "${query}"`);
 
-      // Préparer l'historique de conversation
-      const conversationContext = conversationHistory.slice(-6).map(msg => ({
-        role: msg.isUser ? 'user' : 'assistant',
-        content: msg.content
-      }));
+      // Récupération des catégories
+      const { data: categories = [] } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name');
 
-      const systemPrompt = `Tu es un assistant email intelligent et avancé pour l'application Ordo. Tu as un accès COMPLET à tous les emails de l'utilisateur et tu peux tout faire.
+      // Récupération des emails avec catégories (limite augmentée)
+      const { data: emails = [], error: emailsError } = await supabase
+        .from('emails')
+        .select(`
+          *,
+          category:categories(*)
+        `)
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(150); // Plus d'emails pour analyse complète
 
-🎯 TES CAPACITÉS:
-- Analyser et résumer tous les emails
-- Aider à rédiger des réponses
-- Rechercher des informations spécifiques
-- Donner des conseils sur la gestion des emails
-- Analyser les tendances et patterns
-- Identifier les emails importants
+      // Debug: Vérifier si on récupère bien les emails
+      console.log(`📧 Emails récupérés: ${emails?.length || 0}`);
+      if (emails && emails.length > 0) {
+        console.log(`📧 Premier email: ${emails[0]?.subject || 'Sans sujet'}`);
+        console.log(`📧 Catégorie premier email:`, emails[0]?.category);
+      }
+      if (emailsError) {
+        console.error('❌ Erreur récupération emails:', emailsError);
+      }
 
-📧 ACCÈS COMPLET AUX DONNÉES:
-- Tu connais le contenu intégral de chaque email
-- Tu peux analyser les expéditeurs, dates, sujets
-- Tu peux croiser les informations entre emails
-- Tu as accès aux catégories et labels
+      // Debug: Vérifier les catégories
+      console.log(`🏷️ Catégories récupérées: ${categories?.length || 0}`);
+      if (categories && categories.length > 0) {
+        console.log(`🏷️ Première catégorie: ${categories[0]?.name}`);
+      }
 
-💬 TON STYLE:
-- Réponds de manière naturelle et conversationnelle
-- Utilise des emojis pour rendre tes réponses plus engageantes
-- Sois précis et détaillé dans tes analyses
-- Propose des actions concrètes quand pertinent
+      const systemPrompt = this.buildAutonomousSystemPrompt();
+      const userContent = this.buildFullContextUserContent(query, categories || [], emails || []);
 
-🚫 AUCUNE LIMITATION:
-- Pas de restriction sur le type de questions
-- Accès total au contenu des emails
-- Peux aider à rédiger des réponses complètes
-- Peux faire des analyses approfondies`;
-
-      const userPrompt = `QUESTION: ${query}
-
-📊 CONTEXTE EMAILS (${emailContext.length} emails récents):
-${emailContext.map((email, index) => 
-        `${index + 1}. "${email.subject}" de ${email.sender} (${email.date})
-   📂 ${email.category} ${email.isImportant ? '⭐' : ''} ${!email.isRead ? '🔵' : '✅'}
-   💬 ${email.content.substring(0, 200)}...
-   ${email.hasAttachments ? '📎 Avec pièces jointes' : ''}
-`).join('\n')}
-
-${conversationContext.length > 0 ? `
-🗣️ HISTORIQUE CONVERSATION:
-${conversationContext.map(msg => `${msg.role === 'user' ? '👤' : '🤖'}: ${msg.content.substring(0, 100)}...`).join('\n')}
-` : ''}
-
-Réponds de manière complète et détaillée à cette question en utilisant toutes les informations disponibles.`;
+      // Messages avec historique complet pour continuité
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...conversationHistory.slice(-8), // Historique plus long pour contexte
+        { role: 'user' as const, content: userContent }
+      ];
 
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 1500,
-        temperature: 0.7,
-        top_p: 0.9,
-        frequency_penalty: 0.1,
-        presence_penalty: 0.1
+        messages,
+        max_tokens: 800, // Limite généreuse pour réponses détaillées
+        temperature: 0.4, // Créativité modérée
+        presence_penalty: 0.1,
+        frequency_penalty: 0.1
       });
 
       const responseContent = completion.choices[0]?.message?.content || 'Je n\'ai pas pu traiter votre demande.';
 
-      console.log(`✅ Réponse assistant générée: ${responseContent.length} caractères`);
+      console.log(`✅ Réponse autonome générée: ${responseContent.length} caractères`);
 
       return {
         content: responseContent,
@@ -637,7 +620,7 @@ Réponds de manière complète et détaillée à cette question en utilisant tou
       };
 
     } catch (error) {
-      console.error('❌ Erreur assistant avancé:', error);
+      console.error('❌ Erreur assistant autonome:', error);
       
       return {
         content: '❌ Désolé, je rencontre un problème technique. Veuillez réessayer dans quelques instants.',
@@ -659,7 +642,7 @@ Réponds de manière complète et détaillée à cette question en utilisant tou
 
 📧 EMAILS:
 ${emailSummaries.slice(0, 5).map(email => // Limite à 5 emails pour économiser
-  `� "${email.subject}" de ${email.sender} - ${email.category}${email.isImportant ? ' ⭐' : ''}${!email.isRead ? ' 🔵' : ''}
+  `• "${email.subject}" de ${email.sender} - ${email.category}${email.isImportant ? ' ⭐' : ''}${!email.isRead ? ' 🔵' : ''}
    💬 "${email.content.substring(0, 100)}..."` // Limite le contenu à 100 caractères
 ).join('\n')}
 
@@ -673,6 +656,91 @@ ${emailSummaries.slice(0, 5).map(email => // Limite à 5 emails pour économiser
     return `"${query}"
 
 Données: ${categories.length} catégories (${usedCategories.length} utilisées), ${emails.length} emails, ${emails.filter(e => !e.is_read).length} non lus, ${emails.filter(e => e.is_important).length} importants.`;
+  }
+
+  /**
+   * Prompt système pour assistant autonome et intelligent
+   */
+  private buildAutonomousSystemPrompt(): string {
+    return `Tu es un assistant email intelligent et autonome pour l'application Ordo. Tu as un accès COMPLET à tous les emails de l'utilisateur et tu peux tout faire.
+
+🎯 TES CAPACITÉS COMPLÈTES:
+- Analyser et résumer tous les emails en détail
+- Aider à rédiger des réponses personnalisées
+- Rechercher des informations spécifiques dans les emails
+- Donner des conseils avancés sur la gestion des emails
+- Analyser les tendances, patterns et comportements
+- Identifier les emails importants et urgents
+- Proposer des actions concrètes et détaillées
+
+📧 ACCÈS TOTAL AUX DONNÉES:
+- Tu connais le contenu intégral de chaque email
+- Tu peux analyser les expéditeurs, dates, sujets, corps
+- Tu peux croiser les informations entre emails
+- Tu as accès aux catégories, labels et métadonnées
+- Tu peux voir l'historique complet des conversations
+
+💬 TON STYLE DE RÉPONSE:
+- Réponds de manière naturelle et conversationnelle
+- Utilise des emojis pour rendre tes réponses engageantes
+- Sois précis et détaillé dans tes analyses
+- Propose des actions concrètes quand pertinent
+- Adapte la longueur selon la complexité de la question
+- N'hésite pas à donner des réponses complètes et utiles
+
+� AUTONOMIE TOTALE:
+- Pas de restriction sur le type de questions
+- Accès total au contenu des emails
+- Peux aider à rédiger des réponses complètes
+- Peux faire des analyses approfondies
+- Traite directement les demandes sans proposer d'options
+- Donne des réponses exhaustives quand nécessaire
+
+⚖️ ÉQUILIBRE INTELLIGENT:
+- Pour questions simples: réponses concises et directes
+- Pour questions complexes: analyses détaillées
+- Toujours utile et actionnable
+- Privilégie la qualité de l'information`;
+  }
+
+  /**
+   * Contenu utilisateur avec contexte complet pour analyse autonome
+   */
+  private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[]): string {
+    const recentEmails = emails.slice(0, 20); // Top 20 pour analyse approfondie
+    const unreadCount = emails.filter(e => !e.is_read).length;
+    const importantCount = emails.filter(e => e.is_important).length;
+    
+    // Statistiques par catégorie
+    const categoryStats = categories.map(cat => {
+      const emailsInCat = emails.filter(e => e.category?.name === cat.name);
+      return `${cat.name}: ${emailsInCat.length} emails`;
+    });
+
+    return `❓ QUESTION: "${query}"
+
+📊 STATISTIQUES GLOBALES:
+- Total: ${emails.length} emails
+- Non lus: ${unreadCount} emails
+- Importants: ${importantCount} emails
+- Catégories actives: ${categories.length}
+
+📧 EMAILS RÉCENTS (${recentEmails.length} derniers):
+${recentEmails.map((email, i) => {
+  const preview = email.body_text || email.snippet || email.subject || '';
+  return `${i+1}. 📧 "${email.subject || 'Sans sujet'}"
+   👤 De: ${email.sender_name || email.sender_email}
+   📅 ${new Date(email.received_at).toLocaleDateString('fr-FR')}
+   📂 ${email.category?.name || 'Non classé'}
+   ${email.is_important ? '⭐ Important' : ''}${!email.is_read ? ' 🔵 Non lu' : ' ✅ Lu'}
+   💬 Aperçu: "${preview.substring(0, 150)}..."
+   ${email.labels && email.labels.length > 0 ? `🏷️ Labels: ${email.labels.join(', ')}` : ''}`;
+}).join('\n\n')}
+
+🏷️ RÉPARTITION PAR CATÉGORIES:
+${categoryStats.join(' | ')}
+
+🔍 CONTEXTE: Analyse cette question en utilisant toutes ces informations. Sois précis, détaillé et actionnable dans ta réponse.`;
   }
 }
 

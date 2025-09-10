@@ -131,43 +131,18 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       // Incrémenter l'usage avant d'envoyer la question
       await incrementUsage();
 
-      // Récupérer tous les emails de l'utilisateur pour le contexte
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Utilisateur non connecté');
+      // Appeler l'API OpenAI avec l'historique de conversation
+      const conversationHistory = messages
+        .filter(m => m.isUser || m.type !== 'info')
+        .slice(-6) // Garde les 6 derniers messages pour le contexte
+        .map(m => ({
+          role: m.isUser ? 'user' as const : 'assistant' as const,
+          content: m.content
+        }));
 
-      // Récupérer tous les emails avec leurs détails complets
-      const { data: emails, error: emailsError } = await supabase
-        .from('emails')
-        .select(`
-          *,
-          categories(name, color, icon)
-        `)
-        .eq('user_id', user.id)
-        .order('received_at', { ascending: false })
-        .limit(50); // Limiter à 50 emails les plus récents pour éviter les tokens
-
-      if (emailsError) throw emailsError;
-
-      // Préparer le contexte enrichi pour l'assistant
-      const emailContext = emails?.map(email => ({
-        id: email.id,
-        subject: email.subject,
-        sender_name: email.sender_name,
-        sender_email: email.sender_email,
-        received_at: email.received_at,
-        body_text: email.body_text,
-        snippet: email.snippet,
-        is_read: email.is_read,
-        is_important: email.is_important,
-        category: email.categories?.name || 'Non classé',
-        labels: email.labels
-      })) || [];
-
-      // Appeler l'API OpenAI avec le contexte complet
       const response = await openaiService.getAdvancedEmailResponse(
         inputValue,
-        emailContext,
-        messages.filter(m => m.isUser || m.type !== 'info').slice(-10) // Historique des 10 derniers messages
+        conversationHistory
       );
 
       const assistantMessage: ChatMessage = {
