@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Settings, X, BarChart3, CreditCard, FolderOpen } from 'lucide-react'
+import { Mail, Settings, X, CreditCard, FolderOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { emailSyncService } from '../services/emailSync'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion'
@@ -86,12 +86,6 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
       icon: <FolderOpen className="h-5 w-5" />,
       path: '/categories'
       // Pas de submenu - lien direct vers la page de gestion des catégories
-    },
-    {
-      id: 'stats',
-      name: 'Statistiques',
-      icon: <BarChart3 className="h-5 w-5" />,
-      path: '/stats'
     },
     {
       id: 'subscription',
