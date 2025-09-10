@@ -360,8 +360,8 @@ export function Dashboard() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Filtres et catégories */}
-          <div className="lg:col-span-1">
+          {/* Sidebar - Filtres et catégories - Masqué sur mobile */}
+          <div className="lg:col-span-1 hidden lg:block">
             <Card className="mb-6">
               <CardContent className="p-4">
                 <h2 className="font-semibold text-gray-900 mb-4">Filtres rapides</h2>
@@ -451,8 +451,8 @@ export function Dashboard() {
             </Card>
           </div>
 
-          {/* Main content - Liste des emails */}
-          <div className="lg:col-span-3">
+          {/* Main content - Liste des emails - Prend toute la largeur sur mobile */}
+          <div className="lg:col-span-3 col-span-1">
             {/* Barre de recherche */}
             <div className="mb-6">
               <div className="flex items-center space-x-3">

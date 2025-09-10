@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, FolderOpen, Settings, X, BarChart3, CreditCard } from 'lucide-react'
+import { Mail, Settings, X, BarChart3, CreditCard, FolderOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { emailSyncService } from '../services/emailSync'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion'
 
 interface SidebarCategory {
@@ -38,15 +39,17 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        // Récupérer les catégories avec nombre d'emails
-        const { data, error } = await supabase
-          .rpc('get_user_categories');
+        // Récupérer l'utilisateur connecté
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.log('🚫 Utilisateur non connecté pour charger les catégories');
+          return;
+        }
 
-        if (error) throw error;
-        
-        // Filtrer les catégories qui ont des emails
-        const nonEmptyCategories = data?.filter((cat: SidebarCategory) => cat.emails_count && cat.emails_count > 0) || [];
-        setCategories(nonEmptyCategories);
+        // Utiliser le service emailSync pour récupérer les catégories avec fallback
+        const categoriesData = await emailSyncService.getUserCategories(user.id);
+        setCategories(categoriesData);
+        console.log('📁 Catégories chargées dans la sidebar:', categoriesData?.length || 0, categoriesData);
       } catch (error) {
         console.error('Erreur lors de la récupération des catégories:', error);
       }
@@ -66,21 +69,23 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
       submenu: [
         { name: 'Tous les emails', path: '/dashboard?filter=all', count: categories.reduce((sum, cat) => sum + (cat.emails_count || 0), 0) },
         { name: 'Non lus', path: '/dashboard?filter=unread', count: 22 }, // On pourrait récupérer le vrai nombre en base
-        { name: 'Importants', path: '/dashboard?filter=important', count: 0 }
+        { name: 'Importants', path: '/dashboard?filter=important', count: 0 },
+        // Ajouter les catégories directement ici
+        ...categories.map(cat => ({
+          name: cat.name,
+          path: `/dashboard?category=${cat.id}`,
+          icon: cat.icon,
+          color: cat.color,
+          count: cat.emails_count
+        } as SubmenuItem))
       ] as SubmenuItem[]
     },
     {
       id: 'categories',
       name: 'Catégories',
       icon: <FolderOpen className="h-5 w-5" />,
-      path: '/categories',
-      submenu: categories.map(cat => ({
-        name: cat.name,
-        path: `/dashboard?category=${cat.id}`,
-        icon: cat.icon,
-        color: cat.color,
-        count: cat.emails_count
-      } as SubmenuItem))
+      path: '/categories'
+      // Pas de submenu - lien direct vers la page de gestion des catégories
     },
     {
       id: 'stats',
