@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { gmailService, type ProcessedEmail } from './gmail';
-import { classificationService, type Category } from './classification';
+import { openaiService, type ClassificationResult } from './openai';
+import type { Category } from './classification';
 
 export interface SyncResult {
   success: boolean;
@@ -140,7 +141,7 @@ class EmailSyncService {
         message: 'Préparation des catégories...'
       });
 
-      const categories = await this.ensureDefaultCategories(user.id);
+      let categories = await this.ensureDefaultCategories(user.id);
       
       // 5. Classifier et sauvegarder les emails
       this.updateProgress({
@@ -163,48 +164,28 @@ class EmailSyncService {
         });
 
         try {
-          // Classifier l'email
-          const classification = await classificationService.classifyEmail(email, categories);
+          // Classifier l'email avec OpenAI
+          const classification = await openaiService.classifyEmail(email, categories);
           
-          let categoryId = classification.category_id || '';
+          const categoryId = classification.category_id || '';
           
-          // Si c'est une catégorie auto-générée, la créer si nécessaire
-          if (categoryId.startsWith('auto_')) {
-            const categoryName = categoryId.replace('auto_', '').replace(/_/g, ' ');
+          // Si une nouvelle catégorie a été créée automatiquement
+          if (classification.auto_created) {
+            console.log(`🆕 Nouvelle catégorie créée automatiquement: "${classification.category_name}"`);
+            result.created_categories++;
             
-            // Récupérer les informations de la catégorie suggérée
-            const suggestedCategory = classification.suggested_categories?.[0];
+            // Recharger les catégories pour inclure la nouvelle
+            const { data: updatedCategories } = await supabase
+              .from('categories')
+              .select('*')
+              .eq('user_id', user.id);
             
-            if (suggestedCategory) {
-              console.log(`🆕 Création automatique de la catégorie: "${suggestedCategory.name}"`);
-              
-              const { data: newCategory, error } = await supabase
-                .from('categories')
-                .insert({
-                  user_id: user.id,
-                  name: suggestedCategory.name,
-                  color: suggestedCategory.color,
-                  icon: suggestedCategory.icon,
-                  description: `Catégorie créée automatiquement`,
-                  is_default: false,
-                  is_auto_generated: true
-                })
-                .select()
-                .single();
-
-              if (!error && newCategory) {
-                categoryId = newCategory.id;
-                result.created_categories++;
-                console.log(`✅ Catégorie "${suggestedCategory.name}" créée avec succès`);
-                
-                // Ajouter à la liste des catégories pour éviter les duplicatas
-                categories.push(newCategory);
-              } else {
-                console.error(`❌ Erreur création catégorie "${suggestedCategory.name}":`, error);
-                categoryId = ''; // Assigner à "Non classés"
-              }
+            if (updatedCategories) {
+              categories = updatedCategories;
             }
           }
+
+          console.log(`📂 Email "${email.subject}" classé dans: "${classification.category_name}" (confiance: ${Math.round(classification.confidence * 100)}%)`);
 
           // Sauvegarder l'email
           await this.saveEmail(email, categoryId === 'uncategorized' ? null : categoryId, user.id);
@@ -212,6 +193,13 @@ class EmailSyncService {
         } catch (error) {
           console.error(`Erreur lors du traitement de l'email "${email.subject}":`, error);
           result.errors.push(`Erreur pour "${email.subject}": ${error}`);
+          
+          // Sauvegarder l'email sans catégorie en cas d'erreur
+          try {
+            await this.saveEmail(email, null, user.id);
+          } catch (saveError) {
+            console.error('Erreur lors de la sauvegarde de secours:', saveError);
+          }
         }
       }
 

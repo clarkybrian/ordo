@@ -37,7 +37,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         if (error) throw error;
         
         // Filtrer les catégories qui ont des emails
-        const nonEmptyCategories = data?.filter(cat => cat.emails_count && cat.emails_count > 0) || [];
+        const nonEmptyCategories = data?.filter((cat: any) => cat.emails_count && cat.emails_count > 0) || [];
         setCategories(nonEmptyCategories);
       } catch (error) {
         console.error('Erreur lors de la récupération des catégories:', error);
