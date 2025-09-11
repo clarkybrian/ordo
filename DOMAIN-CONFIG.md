@@ -11,8 +11,13 @@
 - Redirect URLs: `https://votre-projet.supabase.co/auth/v1/callback,https://orton.life/auth/callback`
 
 ### OAuth Google Configuration
-- JavaScript Origins: `https://orton.life`
-- Redirect URIs: `https://votre-projet.supabase.co/auth/v1/callback`
+### Origines JavaScript autorisées
+- `https://orton.life` (OBLIGATOIRE pour production)
+- `http://localhost:5173` (pour développement)
+
+### URI de redirection autorisés  
+- `https://votre-projet.supabase.co/auth/v1/callback` (OBLIGATOIRE)
+- `https://orton.life/auth/callback` (OBLIGATOIRE pour production)
 
 ## Variables d'Environnement Netlify
 Assurez-vous de configurer ces variables sur Netlify :

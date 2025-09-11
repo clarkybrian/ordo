@@ -25,8 +25,22 @@ async function configureGoogleAuth() {
   console.log('Début de la configuration OAuth Google dans Supabase...');
   
   try {
-    // Cette partie nécessite un accès admin à Supabase que nous n'avons pas depuis le frontend
-    console.log('✅ Pour configurer correctement OAuth dans Supabase, suivez ces étapes manuelles:');
+    console.log('✅ ÉTAPE 1 - Configuration Google Cloud Console:');
+    console.log('1. Allez sur https://console.cloud.google.com/');
+    console.log('2. Sélectionnez votre projet');
+    console.log('3. Allez dans APIs & Services > Credentials');
+    console.log('4. Modifiez votre OAuth 2.0 Client ID:');
+    console.log('');
+    console.log('   📍 ORIGINES JAVASCRIPT AUTORISÉES:');
+    console.log('   - https://orton.life');
+    console.log('   - http://localhost:5173 (pour le développement)');
+    console.log('');
+    console.log('   📍 URI DE REDIRECTION AUTORISÉS:');
+    console.log('   - https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback');
+    console.log('   - https://orton.life/auth/callback');
+    console.log('');
+    
+    console.log('✅ ÉTAPE 2 - Configuration Supabase:');
     console.log('1. Connectez-vous à votre dashboard Supabase');
     console.log('2. Allez dans Authentication > Providers > Google');
     console.log('3. Activez Google Auth');
@@ -36,9 +50,11 @@ async function configureGoogleAuth() {
     console.log('   - Authorized Redirect URL: https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback');
     console.log('5. Sauvegardez les changements');
     
-    console.log('\nVérifiez également les paramètres suivants:');
+    console.log('\n✅ ÉTAPE 3 - Configuration Site Supabase:');
     console.log('- Site URL: https://orton.life');
     console.log('- Redirect URLs: https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback,https://orton.life/auth/callback');
+    
+    console.log('\n🚨 IMPORTANT: Les deux domaines doivent être configurés dans Google Cloud !');
     
   } catch (error) {
     console.error('❌ Erreur lors de la configuration:', error.message);
