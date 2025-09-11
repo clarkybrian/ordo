@@ -260,7 +260,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
     <>
       {/* Bouton flottant */}
       <motion.div
-        className="fixed bottom-6 right-6 z-50"
+        className="fixed bottom-6 right-6 z-[110]"
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ delay: 1, type: "spring", stiffness: 200 }}

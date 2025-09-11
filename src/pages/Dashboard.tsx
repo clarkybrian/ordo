@@ -113,8 +113,25 @@ export function Dashboard() {
   // État pour le provider sélectionné
   const [selectedProvider, setSelectedProvider] = useState<EmailProvider>('gmail')
   
-  // État pour le chatbot
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
+  // Détection de l'état de l'assistant de conversation depuis localStorage ou état global
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false)
+  
+  // Écouter les changements d'état de l'assistant
+  useEffect(() => {
+    const checkAssistantState = () => {
+      // On peut détecter si l'assistant est ouvert en regardant la largeur de la fenêtre ou un indicateur
+      const assistantPanel = document.querySelector('[class*="w-112"]') // Panel de 112 de largeur
+      setIsAssistantOpen(!!assistantPanel && assistantPanel.getBoundingClientRect().width > 0)
+    }
+    
+    // Vérifier immédiatement
+    checkAssistantState()
+    
+    // Vérifier périodiquement
+    const interval = setInterval(checkAssistantState, 100)
+    
+    return () => clearInterval(interval)
+  }, [])
   
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -391,11 +408,11 @@ export function Dashboard() {
       <EmailProviderLogos 
         selectedProvider={selectedProvider}
         onProviderChange={handleProviderChange}
-        isChatbotOpen={isChatbotOpen}
+        isChatbotOpen={false}
       />
 
-      {/* Header Dashboard fixe - sous le header principal */}
-      <div className="fixed top-16 left-0 right-0 z-40 px-4 py-4 border-b border-gray-200 bg-white shadow-sm">
+      {/* Header Dashboard fixe - reste en haut sans bouger */}
+      <div className={`fixed top-16 left-0 z-30 px-4 py-4 border-b border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 ${isAssistantOpen ? 'right-112' : 'right-0'}`}>
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2 mb-2">
@@ -415,15 +432,6 @@ export function Dashboard() {
           </div>
           
           <div className="flex items-center space-x-3">
-            {/* Bouton chatbot temporaire pour test */}
-            <Button
-              onClick={() => setIsChatbotOpen(!isChatbotOpen)}
-              size="sm"
-              variant="outline"
-            >
-              Chat {isChatbotOpen ? '✕' : '💬'}
-            </Button>
-            
             {/* Barre de recherche intégrée */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -449,13 +457,13 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Contenu principal avec marge pour les headers fixes */}
-      <div className={`max-w-6xl mx-auto px-4 pt-20 pb-6 transition-all duration-300 ${isChatbotOpen ? 'mr-80' : ''}`}>
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-0">
+      {/* Contenu principal avec marge pour le header fixe */}
+      <div className={`max-w-6xl mx-auto px-4 pt-24 pb-6 transition-all duration-300 ${isAssistantOpen ? 'mr-112' : ''}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
-            <div className={`sticky top-20 z-40 transition-all duration-300 ${isChatbotOpen ? 'ml-0' : ''}`}>
-              <Card className="max-h-[calc(100vh-120px)] overflow-auto">
+            <div className="sticky top-28 z-20">
+              <Card className="max-h-[calc(100vh-160px)] overflow-auto">
                 <CardContent className="p-4 overflow-hidden flex flex-col">
                   <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
                 
@@ -549,7 +557,7 @@ export function Dashboard() {
           </div>
 
           {/* Zone de contenu principal avec scroll */}
-          <div className="lg:col-span-4 col-span-1 lg:pl-0 lg:-ml-4">
+          <div className="lg:col-span-4 col-span-1">
             {/* Contenu conditionnel selon le provider */}
             {selectedProvider === 'gmail' ? (
               // Interface Gmail complète

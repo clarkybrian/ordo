@@ -189,7 +189,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="fixed bottom-6 right-6 z-50"
+        className="fixed bottom-6 right-6 z-[110]"
       >
         <Button
           onClick={onToggleMinimize}
@@ -207,7 +207,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed top-0 right-0 bottom-0 w-112 bg-white shadow-2xl border-l border-gray-200 z-30 flex flex-col"
+      className="fixed top-0 right-0 bottom-0 w-112 bg-white shadow-2xl border-l border-gray-200 z-[100] flex flex-col"
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
