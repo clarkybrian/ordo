@@ -49,12 +49,12 @@ const EmailProviderLogos: React.FC<{
 
   // Position différente selon le format
   const containerClasses = isMobile 
-    ? `fixed bottom-28 right-4 z-[105] transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`
+    ? "w-full mb-4 bg-white rounded-xl shadow-sm border border-gray-200 p-3"
     : `fixed left-4 top-1/2 transform -translate-y-1/2 z-[105] transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`
     
   // Layout différent selon le format
   const layoutClasses = isMobile 
-    ? "flex flex-col space-y-2.5 bg-white rounded-xl shadow-xl p-3 border-2 border-blue-300"
+    ? "flex flex-row justify-center space-x-4"
     : "flex flex-col space-y-4 bg-white rounded-xl shadow-lg p-3 border border-gray-200"
 
   return (
@@ -496,14 +496,16 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Logos des providers - Position fixe à gauche */}
-      <EmailProviderLogos 
-        selectedProvider={selectedProvider}
-        onProviderChange={handleProviderChange}
-        isChatbotOpen={false}
-        onManualSync={handleManualSync}
-        isSyncing={isSyncing}
-      />
+      {/* Logos des providers - Position fixe à gauche sur desktop, intégrés sur mobile */}
+      {!isMobile && (
+        <EmailProviderLogos 
+          selectedProvider={selectedProvider}
+          onProviderChange={handleProviderChange}
+          isChatbotOpen={false}
+          onManualSync={handleManualSync}
+          isSyncing={isSyncing}
+        />
+      )}
 
       {/* Header Dashboard fixe - reste en haut sans bouger */}
       <div className={`fixed top-16 left-0 z-30 px-4 py-4 border-b border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 ${isAssistantOpen ? 'right-112' : 'right-0'}`}>
@@ -511,6 +513,15 @@ export function Dashboard() {
           {isMobile ? (
             // Layout mobile - Organisation verticale simplifiée
             <div className="space-y-3">
+              {/* Providers sur mobile - en haut */}
+              <EmailProviderLogos 
+                selectedProvider={selectedProvider}
+                onProviderChange={handleProviderChange}
+                isChatbotOpen={false}
+                onManualSync={handleManualSync}
+                isSyncing={isSyncing}
+              />
+              
               {/* Ligne 1: Seulement les statistiques (pas de titre ni nom utilisateur) */}
               <div className="text-sm text-gray-600">
                 {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants

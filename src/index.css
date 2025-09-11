@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Responsivité mobile - Pas de scroll horizontal */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+    position: relative;
+  }
+  
+  /* Empêcher les débordements sur mobile */
+  .container, .max-w-6xl, .max-w-7xl {
+    max-width: 100vw !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
 /* Grid pattern for background */
 .bg-grid-pattern {
   background-image: 

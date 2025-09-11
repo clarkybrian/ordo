@@ -114,6 +114,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
     }
   };
 
+  // Fermer la sidebar quand on clique sur l'overlay
+  const handleOverlayClick = () => {
+    onClose();
+  };
+
+  // Empêcher la fermeture si on clique sur la sidebar elle-même
+  const handleSidebarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const handleSignOut = async (): Promise<void> => {
     try {
       await supabase.auth.signOut();
@@ -132,17 +142,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black z-40"
-            onClick={onClose}
+            className="fixed inset-0 bg-black z-40 md:hidden"
+            onClick={handleOverlayClick}
           />
           
           {/* Sidebar */}
           <motion.div
-            className="fixed top-0 left-0 bottom-0 w-80 bg-white shadow-lg z-50 flex flex-col"
+            className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white shadow-lg z-50 flex flex-col"
             variants={sidebarVariants}
             initial="hidden"
             animate="visible"
             exit="hidden"
+            onClick={handleSidebarClick}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
