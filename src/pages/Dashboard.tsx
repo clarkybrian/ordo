@@ -116,10 +116,10 @@ const EmailProviderLogos: React.FC<{
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             disabled={isSyncing || selectedProvider !== 'gmail'}
-            className="w-12 h-12 rounded-lg border-2 border-red-300 bg-red-50 hover:bg-red-100 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-12 h-12 rounded-lg bg-red-600 hover:bg-red-700 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             title="Synchroniser"
           >
-            <RefreshCw className={`h-5 w-5 text-red-600 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-5 w-5 text-white ${isSyncing ? 'animate-spin' : ''}`} />
           </motion.button>
         )}
       </div>
@@ -422,10 +422,25 @@ export function Dashboard() {
   }
 
   // Gérer le clic sur un email
-  const handleEmailClick = (email: Email) => {
+  const handleEmailClick = async (email: Email) => {
     console.log(`📧 Ouverture de l'email: ${email.subject}`)
     setSelectedEmail(email)
     setIsEmailModalOpen(true)
+    
+    // Marquer l'email comme lu s'il ne l'est pas déjà
+    if (!email.is_read && currentUser) {
+      try {
+        console.log(`📖 Marquage de l'email comme lu...`);
+        await emailSyncService.markEmailAsRead(email.id);
+        console.log(`✅ Email marqué comme lu`);
+        
+        // Recharger les données pour mettre à jour l'interface
+        await loadEmails();
+        console.log(`🔄 Interface mise à jour`);
+      } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour du statut de lecture:', error);
+      }
+    }
   }
 
   // Obtenir le nom d'affichage du provider
@@ -495,7 +510,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       {/* Logos des providers - Position fixe à gauche sur desktop, intégrés sur mobile */}
       {!isMobile && (
         <EmailProviderLogos 
@@ -522,12 +537,7 @@ export function Dashboard() {
                 isSyncing={isSyncing}
               />
               
-              {/* Ligne 1: Seulement les statistiques (pas de titre ni nom utilisateur) */}
-              <div className="text-sm text-gray-600">
-                {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
-              </div>
-              
-              {/* Ligne 2: Barre de recherche */}
+              {/* Ligne 1: Barre de recherche */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -554,9 +564,13 @@ export function Dashboard() {
                     </div>
                   )}
                 </div>
-                <div className="text-sm text-gray-500">
-                  {globalStats.totalEmails} emails au total • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
-                </div>
+                
+                {/* Statistiques desktop uniquement */}
+                {!isMobile && (
+                  <div className="text-sm text-gray-500">
+                    {globalStats.totalEmails} emails au total • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center space-x-3">
@@ -589,7 +603,7 @@ export function Dashboard() {
 
       {/* Contenu principal avec marge pour le header fixe */}
       <div className={`mx-auto px-4 pb-6 transition-all duration-300 ${
-        'pt-24'
+        isMobile ? 'pt-44' : 'pt-32'
       } ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar - Filtres et catégories */}

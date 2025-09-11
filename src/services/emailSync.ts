@@ -35,7 +35,7 @@ class EmailSyncService {
     console.log(`[${progress.stage}] ${progress.message} (${Math.round(progress.progress)}%)`);
   }
 
-  async synchronizeEmails(maxEmails: number = 50): Promise<SyncResult> {
+  async synchronizeEmails(maxEmails?: number): Promise<SyncResult> {
     // Protection contre les synchronisations simultanées
     if (this.isSyncing) {
       console.log('🚫 Synchronisation déjà en cours, abandon...');
@@ -65,6 +65,17 @@ class EmailSyncService {
       if (!user) {
         throw new Error('Utilisateur non connecté');
       }
+
+      // Déterminer si c'est une première synchronisation
+      const { last_sync } = await this.getLastSyncInfo(user.id);
+      const isFirstSync = !last_sync;
+      
+      // Adapter le nombre d'emails selon le type de sync
+      if (!maxEmails) {
+        maxEmails = isFirstSync ? 50 : 20; // 50 pour la première, 20 pour les suivantes
+      }
+      
+      console.log(`📧 ${isFirstSync ? 'Première synchronisation' : 'Synchronisation incrémentale'} - ${maxEmails} emails`);
 
       // Test de connexion Gmail
       const isConnected = await gmailService.testConnection();
@@ -493,6 +504,27 @@ class EmailSyncService {
 
     console.log(`✅ getUserEmails résultat: ${emails?.length || 0} emails trouvés`)
     return emails || [];
+  }
+
+  // Nouvelle méthode pour marquer un email comme lu
+  async markEmailAsRead(emailId: string): Promise<void> {
+    try {
+      console.log(`📖 Marquage de l'email ${emailId} comme lu...`);
+      
+      const { error } = await supabase
+        .from('emails')
+        .update({ is_read: true })
+        .eq('id', emailId);
+
+      if (error) {
+        throw new Error(`Erreur lors de la mise à jour: ${error.message}`);
+      }
+
+      console.log(`✅ Email ${emailId} marqué comme lu`);
+    } catch (error) {
+      console.error(`❌ Erreur markEmailAsRead:`, error);
+      throw error;
+    }
   }
 }
 

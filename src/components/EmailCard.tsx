@@ -40,7 +40,8 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
         className={cn(
           "transition-all duration-200",
           "cursor-pointer hover:shadow-lg",
-          !email.is_read && "border-l-4 border-l-primary",
+          !email.is_read && "border-l-4 border-l-primary bg-blue-50/30",
+          email.is_read && "bg-gray-50/50",
           email.is_important && "ring-2 ring-yellow-200"
         )}
         onClick={() => {

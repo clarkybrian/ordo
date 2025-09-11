@@ -95,11 +95,12 @@ export function EmailsPage() {
     if (!email.is_read && currentUser) {
       try {
         console.log(`📖 Marquage de l'email comme lu...`);
-        // TODO: Implémenter markEmailAsRead ou utiliser updateEmail
-        // await emailSyncService.markEmailAsRead(email.id);
+        await emailSyncService.markEmailAsRead(email.id);
+        console.log(`✅ Email marqué comme lu`);
+        
         // Recharger les données pour mettre à jour l'interface
         await loadEmailsData();
-        console.log(`✅ Email marqué comme lu et interface mise à jour`);
+        console.log(`🔄 Interface mise à jour`);
       } catch (error) {
         console.error('❌ Erreur lors de la mise à jour du statut de lecture:', error);
       }

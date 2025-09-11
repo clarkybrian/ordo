@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { openaiService } from '../services/openai';
 import { Button } from './ui/button';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 interface ChatMessage {
   id: string;
@@ -26,6 +27,7 @@ interface ConversationAssistantProps {
 }
 
 export default function ConversationAssistant({ isMinimized, onToggleMinimize }: ConversationAssistantProps) {
+  const { isMobile } = useWindowSize();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -203,14 +205,30 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
   }
 
   return (
-    <motion.div
-      initial={{ x: 400, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 400, opacity: 0 }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed top-0 right-0 bottom-0 w-112 bg-white shadow-2xl border-l border-gray-200 z-[100] flex flex-col"
-    >
-      {/* Header */}
+    <div>
+      {/* Backdrop overlay pour mobile */}
+      {isMobile && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 z-[99]"
+          onClick={onToggleMinimize}
+        />
+      )}
+      
+      <motion.div
+        initial={{ x: isMobile ? '100%' : 400, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: isMobile ? '100%' : 400, opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className={`fixed z-[100] bg-white shadow-2xl flex flex-col ${
+          isMobile 
+            ? 'inset-0 top-16' // Plein écran sur mobile, mais en dessous du header
+            : 'top-0 right-0 bottom-0 w-112 border-l border-gray-200' // Sidebar sur desktop
+        }`}
+      >
+        {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -366,5 +384,6 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
         )}
       </div>
     </motion.div>
+    </div>
   );
 }

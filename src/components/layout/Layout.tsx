@@ -55,7 +55,7 @@ export function Layout({ user }: LayoutProps) {
       {/* Contenu principal */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Menu et Logo */}
@@ -134,7 +134,7 @@ export function Layout({ user }: LayoutProps) {
         </header>
 
         {/* Contenu principal */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 min-w-0 overflow-x-hidden">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 min-w-0 overflow-x-hidden pt-16">
           <Outlet />
         </main>
       </div>

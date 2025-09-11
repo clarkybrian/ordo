@@ -172,6 +172,27 @@ class AdvancedClassificationService {
       color: '#f97316',
       icon: '🏠',
       weight: 1.0
+    },
+    'Réseaux sociaux': {
+      keywords: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'notification', 'mention', 'like', 'commentaire', 'message', 'ami', 'connexion', 'réseau social', 'post', 'photo', 'vidéo', 'story'],
+      senderPatterns: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'social', 'notification', 'noreply'],
+      color: '#8b5cf6',
+      icon: '📱',
+      weight: 1.0
+    },
+    'Promotions': {
+      keywords: ['promo', 'promotion', 'offre', 'reduction', 'soldes', 'discount', 'code promo', 'bon plan', 'deal', 'cashback', 'remise', 'special', 'limited', 'exclusive', 'save', 'économie', 'gratuit', 'free', 'cadeau', 'gift'],
+      senderPatterns: ['promo', 'marketing', 'deals', 'offers', 'sales', 'newsletter', 'noreply', 'no-reply'],
+      color: '#f59e0b',
+      icon: '🏷️',
+      weight: 0.9
+    },
+    'Support Client': {
+      keywords: ['support', 'service client', 'aide', 'help', 'assistance', 'problème', 'réclamation', 'ticket', 'incident', 'bug', 'erreur', 'contact', 'customer service', 'helpdesk', 'faq', 'solution', 'résolution'],
+      senderPatterns: ['support', 'help', 'service', 'customer', 'client', 'assistance', 'helpdesk', 'no-reply', 'noreply'],
+      color: '#06b6d4',
+      icon: '🎧',
+      weight: 1.1
     }
   };
 
@@ -449,57 +470,148 @@ class AdvancedClassificationService {
 
   private calculatePatternScore(features: EmailFeatures, pattern: CategoryPattern, email: ProcessedEmail): number {
     let score = 0;
+    const text = `${email.subject} ${email.body_text}`.toLowerCase();
     
-    // Score basé sur les mots-clés avec pondération TF-IDF
-    const keywordMatches = pattern.keywords.filter(keyword => 
-      features.words.includes(keyword.toLowerCase()) ||
-      email.subject.toLowerCase().includes(keyword.toLowerCase()) ||
-      email.body_text.toLowerCase().includes(keyword.toLowerCase()) ||
-      (stemmer && features.stems.includes(stemmer(keyword)))
-    );
+    // 1. Score basé sur les mots-clés avec pondération avancée
+    let keywordScore = 0;
+    const totalKeywords = pattern.keywords.length;
     
-    if (keywordMatches.length > 0) {
-      const keywordScore = keywordMatches.length / Math.max(pattern.keywords.length, 1);
-      score += keywordScore * 0.6;
+    for (const keyword of pattern.keywords) {
+      const keywordLower = keyword.toLowerCase();
       
-      // Bonus pour mots-clés dans le sujet (plus important)
-      const subjectMatches = pattern.keywords.filter(keyword => 
-        email.subject.toLowerCase().includes(keyword.toLowerCase())
-      );
-      score += (subjectMatches.length / pattern.keywords.length) * 0.3;
+      // Vérification dans le sujet (poids x3)
+      if (email.subject.toLowerCase().includes(keywordLower)) {
+        keywordScore += 3;
+      }
+      
+      // Vérification dans le corps (poids x1)
+      if (email.body_text.toLowerCase().includes(keywordLower)) {
+        keywordScore += 1;
+      }
+      
+      // Vérification avec stemming (poids x0.8)
+      if (stemmer) {
+        const stemmedKeyword = stemmer(keywordLower);
+        if (features.stems.includes(stemmedKeyword)) {
+          keywordScore += 0.8;
+        }
+      }
+      
+      // Vérification partielle (poids x0.5)
+      if (text.includes(keywordLower.substring(0, Math.max(4, keywordLower.length - 2)))) {
+        keywordScore += 0.5;
+      }
     }
     
-    // Score basé sur l'expéditeur
-    const senderMatches = pattern.senderPatterns.filter(senderPattern => 
-      features.senderDomain.includes(senderPattern.toLowerCase()) ||
-      email.sender_email.toLowerCase().includes(senderPattern.toLowerCase()) ||
-      email.sender.toLowerCase().includes(senderPattern.toLowerCase())
-    );
+    // Normaliser le score des mots-clés
+    score += Math.min(keywordScore / (totalKeywords * 3), 0.6);
     
-    if (senderMatches.length > 0) {
-      score += 0.4;
+    // 2. Score basé sur l'expéditeur (plus précis)
+    let senderScore = 0;
+    for (const senderPattern of pattern.senderPatterns) {
+      const patternLower = senderPattern.toLowerCase();
+      
+      // Domaine exact
+      if (features.senderDomain.includes(patternLower)) {
+        senderScore += 0.8;
+      }
+      
+      // Email contient le pattern
+      if (email.sender_email.toLowerCase().includes(patternLower)) {
+        senderScore += 0.6;
+      }
+      
+      // Nom expéditeur contient le pattern
+      if (email.sender.toLowerCase().includes(patternLower)) {
+        senderScore += 0.4;
+      }
     }
+    score += Math.min(senderScore, 0.3);
     
-    // Bonus pour entités nommées
+    // 3. Bonus pour entités et topics spécifiques
+    const entityBonus = this.calculateEntityBonus(features, pattern);
+    score += entityBonus * 0.1;
+    
+    // 4. Score contextuel (patterns de phrases)
+    const contextualScore = this.calculateContextualScore(text, pattern);
+    score += contextualScore * 0.1;
+    
+    return Math.min(score * pattern.weight, 1.0);
+  }
+
+  private calculateEntityBonus(features: EmailFeatures, pattern: CategoryPattern): number {
     const entityMatches = features.entities.filter(entity =>
       pattern.keywords.some(keyword => 
-        entity.toLowerCase().includes(keyword.toLowerCase())
+        entity.toLowerCase().includes(keyword.toLowerCase()) ||
+        keyword.toLowerCase().includes(entity.toLowerCase())
       )
     );
+    return Math.min(entityMatches.length / 3, 1.0);
+  }
+
+  private calculateContextualScore(text: string, pattern: CategoryPattern): number {
+    let contextScore = 0;
     
-    if (entityMatches.length > 0) {
-      score += 0.2;
+    // Patterns contextuels spécifiques par catégorie
+    const contextualPatterns: Record<string, string[]> = {
+      'Factures': ['facture n°', 'montant à payer', 'échéance', 'votre facture'],
+      'Banque': ['solde de', 'virement de', 'carte bancaire', 'votre compte'],
+      'Travail': ['réunion du', 'projet en cours', 'équipe', 'deadline'],
+      'Réseaux sociaux': ['vous a mentionné', 'nouveau message', 'ami vous a', 'notification'],
+      'Promotions': ['offre limitée', 'code promo', 'remise', 'jusqu\'au'],
+      'Support Client': ['votre demande', 'ticket n°', 'nous vous aidons', 'problème résolu']
+    };
+    
+    const patterns = contextualPatterns[pattern.keywords[0]] || [];
+    for (const contextPattern of patterns) {
+      if (text.includes(contextPattern.toLowerCase())) {
+        contextScore += 0.5;
+      }
     }
     
-    return Math.min(score, 1.0);
+    return Math.min(contextScore, 1.0);
   }
 
   private async detectAndCreateCategory(features: EmailFeatures, existingCategories: Category[]): Promise<Category | null> {
-    // Limite de 7 catégories maximum (sauf celles créées manuellement par l'utilisateur)
-    const autoGeneratedCategories = existingCategories.filter(cat => cat.is_auto_generated !== false);
-    if (autoGeneratedCategories.length >= 7) {
-      console.log('🚫 Limite de 7 catégories automatiques atteinte');
+    // 🚫 LIMITATION STRICTE : Maximum 8 catégories automatiques
+    const autoGeneratedCategories = existingCategories.filter(cat => cat.is_auto_generated === true);
+    if (autoGeneratedCategories.length >= 8) {
+      console.log('🚫 Limite de 8 catégories automatiques atteinte');
       return null;
+    }
+    
+    // Limite globale de sécurité
+    if (existingCategories.length >= 15) {
+      console.log('🚫 Limite totale de 15 catégories atteinte');
+      return null;
+    }
+
+    // Priorité aux catégories prédéfinies disponibles
+    const availablePredefinedCategories = this.getAvailablePredefinedCategories(existingCategories);
+    
+    if (availablePredefinedCategories.length > 0) {
+      // Tenter de matcher avec une catégorie prédéfinie
+      for (const categoryName of availablePredefinedCategories) {
+        const pattern = this.categoryPatterns[categoryName];
+        if (pattern) {
+          const score = this.calculatePatternScore(features, pattern, {
+            subject: features.words.join(' '),
+            body_text: features.words.join(' '),
+            sender: features.senderDomain,
+            sender_email: features.senderDomain,
+            is_important: features.isImportant
+          } as any);
+          
+          if (score > 0.3) {
+            console.log(`🆕 Création automatique de catégorie prédéfinie: "${categoryName}" (score: ${score.toFixed(3)})`);
+            try {
+              return await this.createCategory(categoryName);
+            } catch (error) {
+              console.error('Erreur création catégorie prédéfinie:', error);
+            }
+          }
+        }
+      }
     }
 
     // Détection automatique basée sur les sujets et entités
@@ -525,6 +637,13 @@ class AdvancedClassificationService {
     }
     
     return null;
+  }
+
+  private getAvailablePredefinedCategories(existingCategories: Category[]): string[] {
+    const existingNames = existingCategories.map(cat => cat.name.toLowerCase());
+    return Object.keys(this.categoryPatterns).filter(name => 
+      !existingNames.includes(name.toLowerCase())
+    );
   }
 
   private generateCategoryNames(features: EmailFeatures): string[] {
@@ -566,11 +685,11 @@ class AdvancedClassificationService {
   }
 
   private async createCategory(name: string): Promise<Category> {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
-    const icons = ['📁', '📊', '🔗', '💡', '🎯', '⭐', '🔥'];
+    // Utiliser les patterns prédéfinis si disponibles
+    const pattern = this.categoryPatterns[name];
     
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const icon = icons[Math.floor(Math.random() * icons.length)];
+    const color = pattern ? pattern.color : this.getRandomColor();
+    const icon = pattern ? pattern.icon : this.getRandomIcon();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Utilisateur non connecté');
@@ -582,7 +701,9 @@ class AdvancedClassificationService {
         name,
         color,
         icon,
-        description: `Catégorie créée automatiquement`,
+        description: pattern 
+          ? `Catégorie créée automatiquement - ${name}`
+          : `Catégorie créée automatiquement`,
         is_auto_generated: true,
         is_default: false
       })
@@ -591,8 +712,18 @@ class AdvancedClassificationService {
 
     if (error) throw error;
     
-    console.log(`✅ Catégorie "${name}" créée automatiquement`);
+    console.log(`✅ Catégorie "${name}" créée automatiquement avec ${pattern ? 'pattern prédéfini' : 'style généré'}`);
     return category;
+  }
+
+  private getRandomColor(): string {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  private getRandomIcon(): string {
+    const icons = ['📁', '📊', '🔗', '💡', '🎯', '⭐', '🔥'];
+    return icons[Math.floor(Math.random() * icons.length)];
   }
 
   private async fallbackToUnclassified(existingCategories: Category[]): Promise<ClassificationResult> {
