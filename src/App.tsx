@@ -22,43 +22,54 @@ function SubscriptionPage() {
       period: "/mois",
       color: "gray",
       popular: false,
+      description: "Parfait pour commencer",
       features: [
         "📧 10 derniers emails seulement",
         "🔄 Synchronisation manuelle uniquement",
         "🤖 2 questions IA par jour",
-        "📁 3 catégories maximum",
-        "❌ Pas de notifications",
-        "❌ Pas d'analyse avancée"
+        "📁 3 catégories maximum"
       ],
-      limitations: [
-        "⚠️ Accès très limité",
-        "⚠️ Pas de support prioritaire"
-      ]
+      notIncluded: [
+        "❌ Synchronisation quotidienne automatique",
+        "❌ Catégories illimitées",
+        "❌ Aide à la rédaction IA",
+        "❌ Questions IA illimitées",
+        "❌ Synchronisation en temps réel",
+        "❌ Assistant IA personnel avancé"
+
+      ],
+      limitations: []
     },
     {
       name: "Pro",
-      price: "9€",
+      price: "2.99€",
       period: "/mois",
       color: "blue",
       popular: true,
+      description: "Pour les professionnels",
       features: [
         "📧 Synchronisation quotidienne automatique",
         "🤖 20 questions IA par jour",
         "📁 Catégories illimitées",
-        "🔍 Recherche avancée",
         "📊 Analyses et statistiques",
         "🔔 Notifications en temps réel",
         "📝 Aide à la rédaction IA",
         "🎯 Priorisation intelligente"
       ],
+      notIncluded: [
+        "❌ Questions IA illimitées",
+        "❌ Synchronisation en temps réel",
+        "❌ Assistant IA personnel avancé"
+      ],
       limitations: []
     },
     {
       name: "Premium",
-      price: "19€",
+      price: "5.99€",
       period: "/mois",
       color: "purple",
       popular: false,
+      description: "Pour les équipes",
       features: [
         "🚀 Tout de l'offre Pro",
         "🤖 Questions IA illimitées",
@@ -71,6 +82,7 @@ function SubscriptionPage() {
         "📱 Application mobile dédiée",
         "🔒 Sécurité entreprise"
       ],
+      notIncluded: [],
       limitations: []
     }
   ];
@@ -90,7 +102,7 @@ function SubscriptionPage() {
         {plans.map((plan) => (
           <div
             key={plan.name}
-            className={`relative rounded-2xl border-2 p-8 ${
+            className={`relative rounded-2xl border-2 p-8 flex flex-col h-full ${
               plan.popular
                 ? 'border-blue-500 shadow-xl scale-105'
                 : 'border-gray-200 shadow-lg'
@@ -98,7 +110,7 @@ function SubscriptionPage() {
           >
             {plan.popular && (
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-semibold">
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap">
                   ⭐ Le plus populaire
                 </span>
               </div>
@@ -106,29 +118,30 @@ function SubscriptionPage() {
 
             <div className="text-center mb-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+              <p className="text-gray-600 mb-4">{plan.description}</p>
               <div className="flex items-baseline justify-center">
                 <span className="text-5xl font-bold text-gray-900">{plan.price}</span>
                 <span className="text-gray-500 ml-1">{plan.period}</span>
               </div>
             </div>
 
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-3 mb-8 flex-grow">
               {plan.features.map((feature, featureIndex) => (
                 <li key={featureIndex} className="flex items-start">
                   <span className="text-green-500 mr-2 mt-0.5">✓</span>
                   <span className="text-gray-700 text-sm">{feature}</span>
                 </li>
               ))}
-              {plan.limitations.map((limitation, limitIndex) => (
-                <li key={limitIndex} className="flex items-start">
-                  <span className="text-orange-500 mr-2 mt-0.5">!</span>
-                  <span className="text-orange-700 text-sm">{limitation}</span>
+              {plan.notIncluded.map((feature, featureIndex) => (
+                <li key={featureIndex} className="flex items-start opacity-50">
+                  <span className="text-red-400 mr-2 mt-0.5">✗</span>
+                  <span className="text-gray-500 text-sm">{feature}</span>
                 </li>
               ))}
             </ul>
 
             <button
-              className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
+              className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 mt-auto ${
                 plan.name === 'Gratuit'
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   : plan.popular
