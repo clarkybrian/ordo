@@ -437,11 +437,11 @@ export function Dashboard() {
 
       {/* Contenu principal avec marge pour les headers fixes */}
       <div className="max-w-6xl mx-auto px-4 pt-20 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-0">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
-            <div className="sticky top-20">
-              <Card className="max-h-[calc(100vh-200px)]">
+            <div className="fixed top-42 left-[max(1rem,calc((100vw-72rem)/2+1rem))] w-[calc(21.633%-2rem)] z-40">
+              <Card className="max-h-[calc(100vh-120px)] overflow-auto">
                 <CardContent className="p-4 overflow-hidden flex flex-col">
                   <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
                 
@@ -535,7 +535,7 @@ export function Dashboard() {
           </div>
 
           {/* Zone de contenu principal avec scroll */}
-          <div className="lg:col-span-4 col-span-1">
+          <div className="lg:col-span-4 col-span-1 lg:pl-0 lg:-ml-4">
             {/* Contenu conditionnel selon le provider */}
             {selectedProvider === 'gmail' ? (
               // Interface Gmail complète
