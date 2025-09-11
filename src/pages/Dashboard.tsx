@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, FolderOpen, Mail, RefreshCw, User } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -9,6 +10,7 @@ import { SyncProgressBar } from '../components/SyncProgressBar'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
 import { supabase } from '../lib/supabase'
+import { useWindowSize } from '../hooks/useWindowSize'
 import type { Email, Category, EmailProvider } from '../types'
 
 // Composant pour les logos des providers email
@@ -16,7 +18,11 @@ const EmailProviderLogos: React.FC<{
   selectedProvider: EmailProvider;
   onProviderChange: (provider: EmailProvider) => void;
   isChatbotOpen: boolean;
-}> = ({ selectedProvider, onProviderChange, isChatbotOpen }) => {
+  onManualSync?: () => void;
+  isSyncing?: boolean;
+}> = ({ selectedProvider, onProviderChange, isChatbotOpen, onManualSync, isSyncing = false }) => {
+  const { isMobile } = useWindowSize()
+  
   const providers = [
     {
       id: 'gmail' as EmailProvider,
@@ -41,9 +47,19 @@ const EmailProviderLogos: React.FC<{
     }
   ];
 
+  // Position différente selon le format
+  const containerClasses = isMobile 
+    ? `fixed bottom-28 right-4 z-[105] transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`
+    : `fixed left-4 top-1/2 transform -translate-y-1/2 z-[105] transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`
+    
+  // Layout différent selon le format
+  const layoutClasses = isMobile 
+    ? "flex flex-col space-y-2.5 bg-white rounded-xl shadow-xl p-3 border-2 border-blue-300"
+    : "flex flex-col space-y-4 bg-white rounded-xl shadow-lg p-3 border border-gray-200"
+
   return (
-    <div className={`fixed left-4 top-1/2 transform -translate-y-1/2 z-50 transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`}>
-      <div className="flex flex-col space-y-4 bg-white rounded-xl shadow-lg p-3 border border-gray-200">
+    <div className={containerClasses}>
+      <div className={layoutClasses}>
         {providers.map((provider) => (
           <motion.button
             key={provider.id}
@@ -51,11 +67,11 @@ const EmailProviderLogos: React.FC<{
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className={`
-              relative w-14 h-14 rounded-lg border-2 transition-all duration-200 
+              relative ${isMobile ? 'w-12 h-12' : 'w-14 h-14'} rounded-lg border-2 transition-all duration-200 
               flex items-center justify-center group
               ${selectedProvider === provider.id 
                 ? 'border-blue-500 bg-blue-50 shadow-md' 
-                : 'border-gray-200 bg-white ' + provider.color
+                : 'border-gray-300 bg-white shadow-sm ' + provider.color
               }
             `}
             title={provider.name}
@@ -63,7 +79,7 @@ const EmailProviderLogos: React.FC<{
             <img
               src={provider.logo}
               alt={provider.name}
-              className="w-8 h-8 object-contain"
+              className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} object-contain`}
               onError={(e) => {
                 // Fallback vers l'emoji si l'image ne charge pas
                 const target = e.target as HTMLImageElement;
@@ -73,7 +89,7 @@ const EmailProviderLogos: React.FC<{
               }}
             />
             <span 
-              className="text-2xl hidden"
+              className={`${isMobile ? 'text-lg' : 'text-2xl'} hidden`}
               style={{ display: 'none' }}
             >
               {provider.fallbackIcon}
@@ -83,21 +99,37 @@ const EmailProviderLogos: React.FC<{
             {selectedProvider === provider.id && (
               <motion.div
                 layoutId="selectedProvider"
-                className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center"
+                className={`absolute -top-1 -right-1 ${isMobile ? 'w-2.5 h-2.5' : 'w-4 h-4'} bg-blue-500 rounded-full flex items-center justify-center`}
                 initial={false}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
               >
-                <div className="w-2 h-2 bg-white rounded-full"></div>
+                <div className={`${isMobile ? 'w-1 h-1' : 'w-2 h-2'} bg-white rounded-full`}></div>
               </motion.div>
             )}
           </motion.button>
         ))}
+        
+        {/* Bouton Sync sur mobile seulement */}
+        {isMobile && onManualSync && (
+          <motion.button
+            onClick={onManualSync}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={isSyncing || selectedProvider !== 'gmail'}
+            className="w-12 h-12 rounded-lg border-2 border-red-300 bg-red-50 hover:bg-red-100 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Synchroniser"
+          >
+            <RefreshCw className={`h-5 w-5 text-red-600 ${isSyncing ? 'animate-spin' : ''}`} />
+          </motion.button>
+        )}
       </div>
     </div>
   );
 };
 
 export function Dashboard() {
+  const { isMobile } = useWindowSize()
+  const [searchParams] = useSearchParams()
   const [emails, setEmails] = useState<Email[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -132,6 +164,35 @@ export function Dashboard() {
     
     return () => clearInterval(interval)
   }, [])
+
+  // Effet pour lire les paramètres d'URL et mettre à jour selectedCategory
+  useEffect(() => {
+    const categoryParam = searchParams.get('category')
+    const filterParam = searchParams.get('filter')
+    
+    if (categoryParam) {
+      console.log(`📂 Paramètre URL détecté - catégorie: ${categoryParam}`)
+      setSelectedCategory(categoryParam)
+    } else if (filterParam) {
+      console.log(`🔍 Paramètre URL détecté - filtre: ${filterParam}`)
+      if (filterParam === 'all') {
+        setSelectedCategory(null)
+      } else {
+        setSelectedCategory(filterParam) // 'unread' ou 'important'
+      }
+    } else {
+      // Aucun paramètre - réinitialiser à null si ce n'est pas déjà le cas
+      if (selectedCategory !== null) {
+        console.log(`🔄 Aucun paramètre URL - réinitialisation de selectedCategory`)
+        setSelectedCategory(null)
+      }
+    }
+  }, [searchParams, selectedCategory])
+
+  // Log pour surveiller les changements de selectedCategory
+  useEffect(() => {
+    console.log(`🎯 selectedCategory changé vers: ${selectedCategory || 'null'}`)
+  }, [selectedCategory])
   
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -261,14 +322,27 @@ export function Dashboard() {
     setSelectedCategory(null) // Reset la catégorie sélectionnée
   }
 
-  // Filtrer les emails selon la recherche
+  // Filtrer les emails selon la recherche ET la catégorie sélectionnée
   const filteredEmails = emails.filter(email => {
     const matchesSearch = !searchQuery || 
       email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       email.sender_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       email.body_text.toLowerCase().includes(searchQuery.toLowerCase())
     
-    return matchesSearch
+    // Filtrage par catégorie
+    let matchesCategory = true
+    if (selectedCategory) {
+      if (selectedCategory === 'unread') {
+        matchesCategory = !email.is_read
+      } else if (selectedCategory === 'important') {
+        matchesCategory = email.is_important
+      } else {
+        // Catégorie personnalisée - vérifier si l'email appartient à cette catégorie
+        matchesCategory = email.category_id === selectedCategory
+      }
+    }
+    
+    return matchesSearch && matchesCategory
   })
 
   // Gérer la synchronisation manuelle
@@ -409,56 +483,85 @@ export function Dashboard() {
         selectedProvider={selectedProvider}
         onProviderChange={handleProviderChange}
         isChatbotOpen={false}
+        onManualSync={handleManualSync}
+        isSyncing={isSyncing}
       />
 
       {/* Header Dashboard fixe - reste en haut sans bouger */}
       <div className={`fixed top-16 left-0 z-30 px-4 py-4 border-b border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 ${isAssistantOpen ? 'right-112' : 'right-0'}`}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
-              {currentUser && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <User className="h-4 w-4" />
-                  <span className="font-medium text-gray-900">{getUserDisplayName(currentUser.email)}</span>
-                  <span>•</span>
-                  <span className="font-medium text-blue-600">{getProviderDisplayName()}</span>
+        <div className="max-w-6xl mx-auto">
+          {isMobile ? (
+            // Layout mobile - Organisation verticale simplifiée
+            <div className="space-y-3">
+              {/* Ligne 1: Seulement les statistiques (pas de titre ni nom utilisateur) */}
+              <div className="text-sm text-gray-600">
+                {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
+              </div>
+              
+              {/* Ligne 2: Barre de recherche */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
+                />
+              </div>
+            </div>
+          ) : (
+            // Layout desktop - Organisation horizontale (existant)
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
+                  {currentUser && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <User className="h-4 w-4" />
+                      <span className="font-medium text-gray-900">{getUserDisplayName(currentUser.email)}</span>
+                      <span>•</span>
+                      <span className="font-medium text-blue-600">{getProviderDisplayName()}</span>
+                    </div>
+                  )}
                 </div>
-              )}
+                <div className="text-sm text-gray-500">
+                  {globalStats.totalEmails} emails au total • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                {/* Barre de recherche intégrée */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher des emails..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
+                  />
+                </div>
+                
+                <Button
+                  onClick={handleManualSync}
+                  size="sm"
+                  disabled={isSyncing || selectedProvider !== 'gmail'}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                  Synchroniser
+                </Button>
+              </div>
             </div>
-            <div className="text-sm text-gray-500">
-              {globalStats.totalEmails} emails au total • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {/* Barre de recherche intégrée */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher des emails..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
-              />
-            </div>
-            
-            <Button
-              onClick={handleManualSync}
-              size="sm"
-              disabled={isSyncing || selectedProvider !== 'gmail'}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              Synchroniser
-            </Button>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Contenu principal avec marge pour le header fixe */}
-      <div className={`mx-auto px-4 pt-24 pb-6 transition-all duration-300 ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
+      <div className={`mx-auto px-4 pb-6 transition-all duration-300 ${
+        'pt-24'
+      } ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">

@@ -136,6 +136,16 @@
   line-height: 1.4;
 }
 
+/* Masquer les scrollbars sur les carrousels */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .prose h1, .prose h2, .prose h3 {
   margin-top: 0.5rem;
   margin-bottom: 0.25rem;
