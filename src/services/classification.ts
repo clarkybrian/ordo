@@ -4,6 +4,9 @@ let natural: any = null;
 let stopword: any = null;
 let stemmer: any = null;
 
+// Types pour éviter les erreurs TS
+declare const require: any;
+
 // Chargement conditionnel des bibliothèques ML
 if (typeof window === 'undefined') {
   // Code serveur - charger les vraies bibliothèques

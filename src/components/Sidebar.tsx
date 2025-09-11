@@ -71,7 +71,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         { name: 'Non lus', path: '/dashboard?filter=unread', count: 22 }, // On pourrait récupérer le vrai nombre en base
         { name: 'Importants', path: '/dashboard?filter=important', count: 0 },
         // Ajouter les catégories directement ici
-        ...categories.map(cat => ({
+        ...categories.map((cat: SidebarCategory) => ({
           name: cat.name,
           path: `/dashboard?category=${cat.id}`,
           icon: cat.icon,
