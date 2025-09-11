@@ -263,24 +263,40 @@ class EmailSyncService {
 
     const categories = [...(existingCategories || [])];
 
-    // Si l'utilisateur a moins de 3 catégories, créer les catégories par défaut
-    if (categories.length < 3) {
-      // Utiliser les catégories existantes ou créer une catégorie par défaut
-      if (categories.length === 0) {
-        const { data: defaultCategory, error } = await supabase
+    // Catégories par défaut à créer si elles n'existent pas
+    const defaultCategories = [
+      { name: 'Travail', color: '#3B82F6', icon: '💼' },
+      { name: 'Offres d\'emploi', color: '#10B981', icon: '💼' },
+      { name: 'Réseaux sociaux', color: '#8B5CF6', icon: '📱' },
+      { name: 'Promotions', color: '#F59E0B', icon: '🏷️' },
+      { name: 'Banque', color: '#EF4444', icon: '🏦' }
+    ];
+
+    // Vérifier quelles catégories par défaut manquent
+    const existingNames = categories.map(cat => cat.name.toLowerCase());
+    const missingCategories = defaultCategories.filter(
+      defCat => !existingNames.includes(defCat.name.toLowerCase())
+    );
+
+    // Créer les catégories manquantes
+    for (const categoryData of missingCategories) {
+      try {
+        const { data: newCategory, error } = await supabase
           .from('categories')
           .insert([{
-            name: 'Non classés',
-            color: '#6B7280',
-            icon: '📁',
-            user_id: userId
+            ...categoryData,
+            user_id: userId,
+            is_default: true
           }])
           .select()
           .single();
 
-        if (!error && defaultCategory) {
-          categories.push(defaultCategory);
+        if (!error && newCategory) {
+          categories.push(newCategory);
+          console.log(`✅ Catégorie par défaut créée: "${categoryData.name}"`);
         }
+      } catch (error) {
+        console.error(`❌ Erreur création catégorie "${categoryData.name}":`, error);
       }
     }
 

@@ -149,6 +149,25 @@ Expéditeur: ${email.sender_email}
 Sujet: ${email.subject}
 Contenu: ${email.snippet}
 
+RÈGLES SPÉCIALES DE CLASSIFICATION PROFESSIONNELLE :
+
+1. **Alertes d'emploi automatiques** → "Offres d'emploi" :
+   - HelloWork, Indeed, LinkedIn Job Alerts, Pôle Emploi
+   - Sujets : "offre", "poste", "candidature", "job alert", "emploi", "recrutement"
+   - Expéditeurs : noreply@, jobs@, alerts@, notifications@
+
+2. **Vrais emails professionnels** → "Travail" :
+   - Emails de vraies personnes (prénom.nom@entreprise.com)
+   - Communications directes avec collègues, clients, partenaires
+   - Emails personnalisés avec contexte spécifique
+
+3. **Notifications LinkedIn non-emploi** → "Réseaux sociaux" :
+   - Suggestions d'amis, demandes de connexion
+   - Notifications d'activité, likes, commentaires
+
+4. **Emails promotionnels** → "Promotions" :
+   - Newsletters, offres commerciales, marketing
+
 Catégories: ${existingCategories.join(', ') || 'Aucune'}
 
 ${categoryCount >= this.MAX_CATEGORIES ? 
