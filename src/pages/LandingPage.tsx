@@ -260,26 +260,14 @@ export function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative py-24 lg:py-32">
+      <section className="relative py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center max-w-5xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="mb-8"
-            >
-              <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-full text-blue-700 text-sm font-medium mb-8">
-                <Star className="h-4 w-4 mr-2 text-blue-500" />
-                IA de nouvelle génération • Plus de 50k utilisateurs
-              </span>
-            </motion.div>
-
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-              className="text-6xl lg:text-8xl font-bold mb-8 leading-tight"
+              transition={{ duration: 0.8 }}
+              className="text-6xl lg:text-8xl font-bold mb-6 leading-tight"
             >
               <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 L'avenir de la
@@ -293,8 +281,8 @@ export function LandingPage() {
             <motion.p
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-2xl lg:text-3xl text-gray-600 mb-12 leading-relaxed max-w-4xl mx-auto font-light"
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="text-2xl lg:text-3xl text-gray-600 mb-8 leading-relaxed max-w-4xl mx-auto font-light"
             >
               Découvrez une nouvelle façon de gérer vos emails avec notre IA révolutionnaire. 
               <span className="text-blue-600 font-medium"> Organisez, classifiez et optimisez </span>
@@ -304,8 +292,8 @@ export function LandingPage() {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16"
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12"
             >
               <motion.button
                 onClick={handleGoogleAuth}

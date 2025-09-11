@@ -170,6 +170,8 @@ export function Dashboard() {
     const categoryParam = searchParams.get('category')
     const filterParam = searchParams.get('filter')
     
+    console.log(`🔗 Paramètres URL - category: ${categoryParam}, filter: ${filterParam}`)
+    
     if (categoryParam) {
       console.log(`📂 Paramètre URL détecté - catégorie: ${categoryParam}`)
       setSelectedCategory(categoryParam)
@@ -180,14 +182,9 @@ export function Dashboard() {
       } else {
         setSelectedCategory(filterParam) // 'unread' ou 'important'
       }
-    } else {
-      // Aucun paramètre - réinitialiser à null si ce n'est pas déjà le cas
-      if (selectedCategory !== null) {
-        console.log(`🔄 Aucun paramètre URL - réinitialisation de selectedCategory`)
-        setSelectedCategory(null)
-      }
     }
-  }, [searchParams, selectedCategory])
+    // Retirer la réinitialisation automatique pour éviter les conflits
+  }, [searchParams])
 
   // Log pour surveiller les changements de selectedCategory
   useEffect(() => {
@@ -595,7 +592,10 @@ export function Dashboard() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedCategory(null)}
+                    onClick={() => {
+                      console.log('Clic sur "Tous les emails"');
+                      setSelectedCategory(null);
+                    }}
                     className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === null 
                         ? 'bg-primary text-primary-foreground' 
@@ -611,7 +611,10 @@ export function Dashboard() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedCategory('unread')}
+                    onClick={() => {
+                      console.log('Clic sur "Non lus"');
+                      setSelectedCategory('unread');
+                    }}
                     className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === 'unread'
                         ? 'bg-primary text-primary-foreground' 
@@ -627,7 +630,10 @@ export function Dashboard() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedCategory('important')}
+                    onClick={() => {
+                      console.log('Clic sur "Importants"');
+                      setSelectedCategory('important');
+                    }}
                     className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === 'important'
                         ? 'bg-primary text-primary-foreground' 
@@ -657,7 +663,12 @@ export function Dashboard() {
                         key={category.id}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelectedCategory(category.id)}
+                        onClick={() => {
+                          console.log('Clic sur catégorie:', category.name, 'ID:', category.id);
+                          console.log('selectedCategory avant:', selectedCategory);
+                          setSelectedCategory(category.id);
+                          console.log('selectedCategory après setSelectedCategory:', category.id);
+                        }}
                         className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                           selectedCategory === category.id 
                             ? 'bg-primary text-primary-foreground' 
