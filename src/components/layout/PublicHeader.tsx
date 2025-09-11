@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Menu, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 // Suppression de l'interface qui n'est plus nécessaire
 
@@ -31,11 +31,15 @@ export function PublicHeader() {
           <div className="flex justify-between items-center py-4">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-xl">
-                <Mail className="h-6 w-6 text-white" />
+              <div className="bg-white p-1 rounded-xl shadow-sm">
+                <img 
+                  src="/providers/logo-ordo.png" 
+                  alt="Orton" 
+                  className="h-10 w-10 object-contain"
+                />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Ordo
+                Orton
               </span>
             </Link>
 

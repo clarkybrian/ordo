@@ -29,7 +29,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '✨ Salut ! Je suis votre assistant email intelligent Ordo ! 🤖\n\n🧠 Je connais tous vos emails par cœur et peux vous aider avec :\n\n📋 **Résumés détaillés** de vos derniers emails\n✍️ **Aide à la rédaction** de réponses personnalisées\n🔍 **Recherche avancée** dans toute votre boîte mail\n📊 **Analyses complètes** de vos habitudes email\n🎯 **Priorisation** des emails importants\n📅 **Gestion** de votre planning email\n💡 **Conseils** pour optimiser votre productivité\n\n💎 **4 questions par jour** - Utilisez-les bien ! 🚀\n\n🎉 Que puis-je faire pour vous aujourd\'hui ?',
+      content: '✨ Salut ! Je suis votre assistant email intelligent Orton ! 🤖\n\n🧠 Je connais tous vos emails par cœur et peux vous aider avec :\n\n📋 **Résumés détaillés** de vos derniers emails\n✍️ **Aide à la rédaction** de réponses personnalisées\n🔍 **Recherche avancée** dans toute votre boîte mail\n📊 **Analyses complètes** de vos habitudes email\n🎯 **Priorisation** des emails importants\n📅 **Gestion** de votre planning email\n💡 **Conseils** pour optimiser votre productivité\n\n💎 **4 questions par jour** - Utilisez-les bien ! 🚀\n\n🎉 Que puis-je faire pour vous aujourd\'hui ?',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
@@ -218,7 +218,7 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold">Assistant Ordo</h3>
+              <h3 className="font-semibold">Assistant Orton</h3>
               <p className="text-xs text-blue-100">Assistant IA avancé</p>
             </div>
           </div>

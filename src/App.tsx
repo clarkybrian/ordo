@@ -94,7 +94,7 @@ function SubscriptionPage() {
           Choisissez votre abonnement
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Ordo grandit avec vous. Commencez gratuitement et évoluez selon vos besoins de gestion email.
+          Orton grandit avec vous. Commencez gratuitement et évoluez selon vos besoins de gestion email.
         </p>
       </div>
 

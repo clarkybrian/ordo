@@ -21,8 +21,8 @@ export default defineConfig({
       // Configuration basique du manifeste
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Ordo - Email Classification',
-        short_name: 'Ordo',
+        name: 'Orton - Email Classification',
+        short_name: 'Orton',
         description: 'Classificateur automatique d\'emails',
         theme_color: '#3b82f6',
         icons: [

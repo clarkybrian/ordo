@@ -22,7 +22,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '🧠 Salut ! Je suis votre assistant email intelligent Ordo.\n\n✨ Je peux analyser le contenu de vos emails et vous donner des résumés détaillés !\n\n📝 **Questions détaillées** : 4 par période de 3h\n⚡ **Questions rapides** : 10 par période de 3h\n\nQue souhaitez-vous savoir sur vos emails ?',
+      content: '🧠 Salut ! Je suis votre assistant email intelligent Orton.\n\n✨ Je peux analyser le contenu de vos emails et vous donner des résumés détaillés !\n\n📝 **Questions détaillées** : 4 par période de 3h\n⚡ **Questions rapides** : 10 par période de 3h\n\nQue souhaitez-vous savoir sur vos emails ?',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
@@ -312,7 +312,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
                 <div className="flex items-center space-x-2">
                   <span className="text-2xl">🤖</span>
                   <div>
-                    <h3 className="font-semibold">Assistant Ordo</h3>
+                    <h3 className="font-semibold">Assistant Orton</h3>
                     <p className="text-xs opacity-80">Votre aide intelligente</p>
                   </div>
                 </div>

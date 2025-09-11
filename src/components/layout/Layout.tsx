@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { 
-  Mail, 
   Menu,
   MessageCircle,
   LogOut
@@ -72,10 +71,14 @@ export function Layout({ user }: LayoutProps) {
                   </Button>
                 )}
                 
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-primary-foreground" />
+                <div className="bg-white p-1 rounded-xl shadow-sm">
+                  <img 
+                    src="/providers/logo-ordo.png" 
+                    alt="Orton" 
+                    className="h-8 w-8 object-contain"
+                  />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900">Ordo</h1>
+                <h1 className="text-xl font-bold text-gray-900">Orton</h1>
               </div>
 
               {/* Navigation Desktop */}

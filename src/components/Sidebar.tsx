@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Settings, X, CreditCard, FolderOpen } from 'lucide-react'
+import { Settings, X, CreditCard, FolderOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { emailSyncService } from '../services/emailSync'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion'
@@ -64,7 +64,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
     {
       id: 'dashboard',
       name: 'Dashboard',
-      icon: <Mail className="h-5 w-5" />,
+      icon: <img src="/providers/logo-ordo.png" alt="Orton" className="h-6 w-6 object-contain" />,
       path: '/dashboard',
       submenu: [
         { name: 'Tous les emails', path: '/dashboard?filter=all', count: categories.reduce((sum, cat) => sum + (cat.emails_count || 0), 0) },
@@ -155,10 +155,14 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-primary-foreground" />
+                <div className="bg-white p-1 rounded-xl shadow-sm">
+                  <img 
+                    src="/providers/logo-ordo.png" 
+                    alt="Orton" 
+                    className="h-8 w-8 object-contain"
+                  />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900">Ordo</h1>
+                <h1 className="text-xl font-bold text-gray-900">Orton</h1>
               </div>
               <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
                 <X className="h-5 w-5" />
