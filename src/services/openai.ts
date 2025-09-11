@@ -2,7 +2,27 @@ import OpenAI from 'openai';
 import { supabase } from '../lib/supabase';
 import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
-import { chatbotLimiterService } from './chatbotLimiter';
+// import { chatbotLimiterService } from './chatbotLimiter';
+
+interface EmailContext {
+  id: string;
+  subject: string;
+  sender_name: string;
+  sender_email: string;
+  received_at: string;
+  body_text?: string;
+  snippet?: string;
+  is_read: boolean;
+  is_important: boolean;
+  category?: string;
+  labels?: string[];
+  attachments?: unknown[];
+}
+
+interface ConversationMessage {
+  content: string;
+  isUser: boolean;
+}
 
 export interface ClassificationResult {
   category_id: string;
@@ -128,6 +148,25 @@ class OpenAIService {
 Expéditeur: ${email.sender_email}
 Sujet: ${email.subject}
 Contenu: ${email.snippet}
+
+RÈGLES SPÉCIALES DE CLASSIFICATION PROFESSIONNELLE :
+
+1. **Alertes d'emploi automatiques** → "Offres d'emploi" :
+   - HelloWork, Indeed, LinkedIn Job Alerts, Pôle Emploi
+   - Sujets : "offre", "poste", "candidature", "job alert", "emploi", "recrutement"
+   - Expéditeurs : noreply@, jobs@, alerts@, notifications@
+
+2. **Vrais emails professionnels** → "Travail" :
+   - Emails de vraies personnes (prénom.nom@entreprise.com)
+   - Communications directes avec collègues, clients, partenaires
+   - Emails personnalisés avec contexte spécifique
+
+3. **Notifications LinkedIn non-emploi** → "Réseaux sociaux" :
+   - Suggestions d'amis, demandes de connexion
+   - Notifications d'activité, likes, commentaires
+
+4. **Emails promotionnels** → "Promotions" :
+   - Newsletters, offres commerciales, marketing
 
 Catégories: ${existingCategories.join(', ') || 'Aucune'}
 
@@ -310,18 +349,15 @@ JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"rea
     try {
       console.log(`🤖 Question chatbot: "${query}"`);
 
-      // Déterminer le type de question
-      const isDetailed = chatbotLimiterService.isDetailedQuestion(query);
+      // Déterminer le type de question (simplifié)
+      const isDetailed = query.length > 50 || query.includes('?');
       
-      // Vérifier les limites
-      const limitCheck = isDetailed 
-        ? await chatbotLimiterService.canAskDetailedQuestion(userId)
-        : await chatbotLimiterService.canAskQuickQuestion(userId);
+      // TODO: Réintégrer les limites de questions
+      const limitCheck = { allowed: true, remaining: 10 };
 
       if (!limitCheck.allowed) {
-        const resetTime = limitCheck.resetTime?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         return {
-          message: `⏱️ Limite atteinte ! ${isDetailed ? 'Questions détaillées' : 'Questions rapides'} épuisées. Prochaine remise à zéro à ${resetTime}.`,
+          message: `⏱️ Limite atteinte ! Trop de questions posées récemment.`,
           type: 'warning'
         };
       }
@@ -335,8 +371,8 @@ JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"rea
       // Analyser la question avec OpenAI
       const response = await this.processChatbotQuery(query, categoriesData, emailsData, isDetailed);
       
-      // Enregistrer la question posée
-      await chatbotLimiterService.recordQuestion(userId, isDetailed ? 'detailed' : 'quick');
+      // TODO: Enregistrer la question posée
+      // await chatbotLimiterService.recordQuestion(userId, isDetailed ? 'detailed' : 'quick');
       
       return response;
 
@@ -519,6 +555,97 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
   }
 
   /**
+   * Assistant conversationnel avec accès complet et autonomie totale
+   */
+  async getAdvancedEmailResponse(
+    query: string, 
+    conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
+  ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
+    try {
+      // Récupération des données utilisateur
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          content: '🔐 Vous devez être connecté pour utiliser l\'assistant.',
+          type: 'error'
+        };
+      }
+
+      console.log(`🤖 Assistant autonome - Question: "${query}"`);
+
+      // Récupération des catégories
+      const { data: categories = [] } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name');
+
+      // Récupération des emails avec catégories (limite augmentée)
+      const { data: emails = [], error: emailsError } = await supabase
+        .from('emails')
+        .select(`
+          *,
+          category:categories(*)
+        `)
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(150); // Plus d'emails pour analyse complète
+
+      // Debug: Vérifier si on récupère bien les emails
+      console.log(`📧 Emails récupérés: ${emails?.length || 0}`);
+      if (emails && emails.length > 0) {
+        console.log(`📧 Premier email: ${emails[0]?.subject || 'Sans sujet'}`);
+        console.log(`📧 Catégorie premier email:`, emails[0]?.category);
+      }
+      if (emailsError) {
+        console.error('❌ Erreur récupération emails:', emailsError);
+      }
+
+      // Debug: Vérifier les catégories
+      console.log(`🏷️ Catégories récupérées: ${categories?.length || 0}`);
+      if (categories && categories.length > 0) {
+        console.log(`🏷️ Première catégorie: ${categories[0]?.name}`);
+      }
+
+      const systemPrompt = this.buildAutonomousSystemPrompt();
+      const userContent = this.buildFullContextUserContent(query, categories || [], emails || []);
+
+      // Messages avec historique complet pour continuité
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...conversationHistory.slice(-8), // Historique plus long pour contexte
+        { role: 'user' as const, content: userContent }
+      ];
+
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        max_tokens: 800, // Limite généreuse pour réponses détaillées
+        temperature: 0.4, // Créativité modérée
+        presence_penalty: 0.1,
+        frequency_penalty: 0.1
+      });
+
+      const responseContent = completion.choices[0]?.message?.content || 'Je n\'ai pas pu traiter votre demande.';
+
+      console.log(`✅ Réponse autonome générée: ${responseContent.length} caractères`);
+
+      return {
+        content: responseContent,
+        type: 'success'
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur assistant autonome:', error);
+      
+      return {
+        content: '❌ Désolé, je rencontre un problème technique. Veuillez réessayer dans quelques instants.',
+        type: 'error'
+      };
+    }
+  }
+
+  /**
    * Contenu utilisateur pour questions détaillées
    */
   private buildDetailedUserContent(query: string, categories: Category[], emails: EmailWithCategory[], emailSummaries: EmailSummary[]): string {
@@ -531,7 +658,7 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
 
 📧 EMAILS:
 ${emailSummaries.slice(0, 5).map(email => // Limite à 5 emails pour économiser
-  `� "${email.subject}" de ${email.sender} - ${email.category}${email.isImportant ? ' ⭐' : ''}${!email.isRead ? ' 🔵' : ''}
+  `• "${email.subject}" de ${email.sender} - ${email.category}${email.isImportant ? ' ⭐' : ''}${!email.isRead ? ' 🔵' : ''}
    💬 "${email.content.substring(0, 100)}..."` // Limite le contenu à 100 caractères
 ).join('\n')}
 
@@ -545,6 +672,103 @@ ${emailSummaries.slice(0, 5).map(email => // Limite à 5 emails pour économiser
     return `"${query}"
 
 Données: ${categories.length} catégories (${usedCategories.length} utilisées), ${emails.length} emails, ${emails.filter(e => !e.is_read).length} non lus, ${emails.filter(e => e.is_important).length} importants.`;
+  }
+
+  /**
+   * Prompt système pour assistant autonome et intelligent
+   */
+  private buildAutonomousSystemPrompt(): string {
+    return `Tu es un assistant email intelligent et autonome pour l'application Ordo. Tu as un accès COMPLET à tous les emails de l'utilisateur et tu peux tout faire.
+
+🎯 TES CAPACITÉS COMPLÈTES:
+- Analyser et résumer tous les emails en détail
+- Aider à rédiger des réponses personnalisées
+- Rechercher des informations spécifiques dans les emails
+- Donner des conseils avancés sur la gestion des emails
+- Analyser les tendances, patterns et comportements
+- Identifier les emails importants et urgents
+- Proposer des actions concrètes et détaillées
+
+📧 ACCÈS TOTAL AUX DONNÉES:
+- Tu connais le contenu intégral de chaque email
+- Tu peux analyser les expéditeurs, dates, sujets, corps
+- Tu peux croiser les informations entre emails
+- Tu as accès aux catégories, labels et métadonnées
+- Tu peux voir l'historique complet des conversations
+
+💬 TON STYLE DE RÉPONSE:
+- Réponds de manière naturelle et conversationnelle
+- Utilise BEAUCOUP d'emojis pour illustrer tes réponses (📧 📝 📊 ⭐ 🔍 💡 🎯 📅 👥 ✅ ❌ 🚀 💯 📈 📋 🔥 ⚡ 🎉 etc.)
+- Sois précis et détaillé dans tes analyses
+- Propose des actions concrètes avec emojis appropriés
+- Adapte la longueur selon la complexité de la question
+- Structure tes réponses avec des emojis pour chaque section
+- Utilise des emojis spécifiques selon le contexte :
+  • 📧 pour les emails
+  • 📝 pour la rédaction
+  • 📊 pour les statistiques  
+  • ⭐ pour l'important
+  • 🔍 pour les recherches
+  • 💡 pour les conseils
+  • 🎯 pour les priorités
+  • 📅 pour les dates
+  • 👥 pour les expéditeurs
+  • ✅ pour les actions accomplies
+  • 🚀 pour les suggestions d'amélioration
+
+� AUTONOMIE TOTALE:
+- Pas de restriction sur le type de questions
+- Accès total au contenu des emails
+- Peux aider à rédiger des réponses complètes
+- Peux faire des analyses approfondies
+- Traite directement les demandes sans proposer d'options
+- Donne des réponses exhaustives quand nécessaire
+
+⚖️ ÉQUILIBRE INTELLIGENT:
+- Pour questions simples: réponses concises et directes
+- Pour questions complexes: analyses détaillées
+- Toujours utile et actionnable
+- Privilégie la qualité de l'information`;
+  }
+
+  /**
+   * Contenu utilisateur avec contexte complet pour analyse autonome
+   */
+  private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[]): string {
+    const recentEmails = emails.slice(0, 20); // Top 20 pour analyse approfondie
+    const unreadCount = emails.filter(e => !e.is_read).length;
+    const importantCount = emails.filter(e => e.is_important).length;
+    
+    // Statistiques par catégorie
+    const categoryStats = categories.map(cat => {
+      const emailsInCat = emails.filter(e => e.category?.name === cat.name);
+      return `${cat.name}: ${emailsInCat.length} emails`;
+    });
+
+    return `❓ QUESTION: "${query}"
+
+📊 STATISTIQUES GLOBALES:
+- Total: ${emails.length} emails
+- Non lus: ${unreadCount} emails
+- Importants: ${importantCount} emails
+- Catégories actives: ${categories.length}
+
+📧 EMAILS RÉCENTS (${recentEmails.length} derniers):
+${recentEmails.map((email, i) => {
+  const preview = email.body_text || email.snippet || email.subject || '';
+  return `${i+1}. 📧 "${email.subject || 'Sans sujet'}"
+   👤 De: ${email.sender_name || email.sender_email}
+   📅 ${new Date(email.received_at).toLocaleDateString('fr-FR')}
+   📂 ${email.category?.name || 'Non classé'}
+   ${email.is_important ? '⭐ Important' : ''}${!email.is_read ? ' 🔵 Non lu' : ' ✅ Lu'}
+   💬 Aperçu: "${preview.substring(0, 150)}..."
+   ${email.labels && email.labels.length > 0 ? `🏷️ Labels: ${email.labels.join(', ')}` : ''}`;
+}).join('\n\n')}
+
+🏷️ RÉPARTITION PAR CATÉGORIES:
+${categoryStats.join(' | ')}
+
+🔍 CONTEXTE: Analyse cette question en utilisant toutes ces informations. Sois précis, détaillé et actionnable dans ta réponse.`;
   }
 }
 

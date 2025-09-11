@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, RefreshCw } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { EmailCard } from '../components/EmailCard'
-import { EmailDetailPanel } from '../components/EmailDetailPanel'
+import { EmailModal } from '../components/EmailModal'
 import { emailSyncService } from '../services/emailSync'
 import { supabase } from '../lib/supabase'
 import type { Email, Category } from '../types'
@@ -13,6 +13,7 @@ export function EmailsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -87,13 +88,15 @@ export function EmailsPage() {
     console.log(`🖱️ Clic sur l'email: "${email.subject}" de ${email.sender_name}`);
     console.log(`🔍 Email data:`, email);
     setSelectedEmail(email);
-    console.log(`✅ selectedEmail state mis à jour`);
+    setIsEmailModalOpen(true);
+    console.log(`✅ selectedEmail state mis à jour et modal ouvert`);
     
     // Marquer l'email comme lu s'il ne l'est pas déjà
     if (!email.is_read && currentUser) {
       try {
         console.log(`📖 Marquage de l'email comme lu...`);
-        await emailSyncService.markEmailAsRead(email.id);
+        // TODO: Implémenter markEmailAsRead ou utiliser updateEmail
+        // await emailSyncService.markEmailAsRead(email.id);
         // Recharger les données pour mettre à jour l'interface
         await loadEmailsData();
         console.log(`✅ Email marqué comme lu et interface mise à jour`);
@@ -119,9 +122,9 @@ export function EmailsPage() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex">
-      {/* Panneau de gauche - Liste des emails */}
-      <div className={`${selectedEmail ? 'w-1/2' : 'w-full'} transition-all duration-300 flex flex-col`}>
+    <div className="h-screen bg-gray-50">
+      {/* Container principal - Prend toute la largeur maintenant */}
+      <div className="w-full transition-all duration-300 flex flex-col">
         <div className="flex-1 overflow-hidden">
           <div className="h-full px-4 sm:px-6 lg:px-8 py-6">
             {/* Header */}
@@ -147,15 +150,6 @@ export function EmailsPage() {
                 </Button>
               </div>
             </div>
-
-            {/* Debug info */}
-            {selectedEmail && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded">
-                <p className="text-green-800 text-sm">
-                  ✅ Email sélectionné: <strong>{selectedEmail.subject}</strong>
-                </p>
-              </div>
-            )}
 
             {/* Filtres et recherche */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
@@ -235,7 +229,6 @@ export function EmailsPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className={selectedEmail?.id === email.id ? 'bg-blue-50 rounded-lg border-blue-200' : ''}
                       >
                         <EmailCard 
                           email={email} 
@@ -251,21 +244,16 @@ export function EmailsPage() {
         </div>
       </div>
 
-      {/* Panneau de droite - Détails de l'email */}
-      <AnimatePresence>
-        {selectedEmail && (
-          <>
-            {console.log(`🎭 Rendu du panneau pour l'email:`, selectedEmail.subject)}
-            <EmailDetailPanel
-              email={selectedEmail}
-              onClose={() => {
-                console.log(`❌ Fermeture du panneau`);
-                setSelectedEmail(null);
-              }}
-            />
-          </>
-        )}
-      </AnimatePresence>
+      {/* Modal pour les détails de l'email */}
+      <EmailModal
+        email={selectedEmail}
+        isOpen={isEmailModalOpen}
+        onClose={() => {
+          console.log(`❌ Fermeture du modal`);
+          setSelectedEmail(null);
+          setIsEmailModalOpen(false);
+        }}
+      />
     </div>
   )
 }

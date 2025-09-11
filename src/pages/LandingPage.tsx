@@ -73,7 +73,7 @@ export function LandingPage() {
       name: "Sarah Chen",
       role: "CEO, TechCorp",
       avatar: "👩‍💼",
-      quote: "Ordo a révolutionné ma productivité. Je gagne 3 heures par jour grâce à la classification automatique.",
+      quote: "Orton a révolutionné ma productivité. Je gagne 3 heures par jour grâce à la classification automatique.",
       rating: 5
     },
     {
@@ -260,26 +260,14 @@ export function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative py-24 lg:py-32">
+      <section className="relative py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center max-w-5xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="mb-8"
-            >
-              <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-full text-blue-700 text-sm font-medium mb-8">
-                <Star className="h-4 w-4 mr-2 text-blue-500" />
-                IA de nouvelle génération • Plus de 50k utilisateurs
-              </span>
-            </motion.div>
-
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-              className="text-6xl lg:text-8xl font-bold mb-8 leading-tight"
+              transition={{ duration: 0.8 }}
+              className="text-6xl lg:text-8xl font-bold mb-6 leading-tight"
             >
               <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 L'avenir de la
@@ -293,8 +281,8 @@ export function LandingPage() {
             <motion.p
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-2xl lg:text-3xl text-gray-600 mb-12 leading-relaxed max-w-4xl mx-auto font-light"
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="text-2xl lg:text-3xl text-gray-600 mb-8 leading-relaxed max-w-4xl mx-auto font-light"
             >
               Découvrez une nouvelle façon de gérer vos emails avec notre IA révolutionnaire. 
               <span className="text-blue-600 font-medium"> Organisez, classifiez et optimisez </span>
@@ -304,8 +292,8 @@ export function LandingPage() {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16"
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12"
             >
               <motion.button
                 onClick={handleGoogleAuth}
@@ -383,7 +371,7 @@ export function LandingPage() {
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               Ils nous font confiance
             </h3>
-            <p className="text-gray-600">Plus de 1000 entreprises utilisent Ordo quotidiennement</p>
+            <p className="text-gray-600">Plus de 1000 entreprises utilisent Orton quotidiennement</p>
           </motion.div>
 
           <div className="relative overflow-hidden">
@@ -424,7 +412,7 @@ export function LandingPage() {
               Fonctionnalités <span className="text-blue-600">révolutionnaires</span>
             </h2>
             <p className="text-2xl text-gray-600 max-w-3xl mx-auto">
-              Découvrez comment Ordo transforme votre façon de travailler avec vos emails
+              Découvrez comment Orton transforme votre façon de travailler avec vos emails
             </p>
           </motion.div>
 
@@ -481,7 +469,7 @@ export function LandingPage() {
             className="text-center mb-16"
           >
             <h2 className="text-5xl font-bold text-gray-900 mb-6">
-              Ils adorent <span className="text-blue-600">Ordo</span>
+              Ils adorent <span className="text-blue-600">Orton</span>
             </h2>
             <p className="text-xl text-gray-600">
               Découvrez ce que disent nos utilisateurs
@@ -577,7 +565,7 @@ export function LandingPage() {
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
                   <Mail className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold">Ordo</span>
+                <span className="text-2xl font-bold">Orton</span>
               </div>
               <p className="text-gray-400 text-lg leading-relaxed max-w-md">
                 L'avenir de la gestion d'emails. Organisez, classifiez et optimisez votre productivité avec notre IA révolutionnaire.
@@ -607,7 +595,7 @@ export function LandingPage() {
           
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 mb-4 md:mb-0">
-              © 2025 Ordo. Conçu avec ❤️ pour simplifier votre vie.
+              © 2025 Orton. Conçu avec ❤️ pour simplifier votre vie.
             </div>
             <div className="flex space-x-6 text-gray-400">
               <a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a>

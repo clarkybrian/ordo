@@ -30,54 +30,62 @@ export function PricingPage() {
       period: '/mois',
       description: 'Parfait pour commencer',
       features: [
-        'Jusqu\'à 100 emails/mois',
-        '3 catégories personnalisées',
-        'Classification automatique',
-        'Support communautaire'
+        '📧 10 derniers emails seulement',
+        '🔄 Synchronisation manuelle uniquement',
+        '🤖 2 questions IA par jour',
+        '📁 3 catégories maximum'
       ],
       notIncluded: [
-        'Intégrations avancées',
-        'Analyses détaillées',
-        'Support prioritaire',
-        'API'
+        '❌ Synchronisation quotidienne automatique',
+        '❌ Catégories illimitées',
+        '❌ Notifications en temps réel',
+        '❌ Aide à la rédaction IA',
+        '❌ Questions IA illimitées',
+        '❌ Synchronisation en temps réel',
+        '❌ Assistant IA personnel avancé'
       ],
       popular: false,
       cta: 'Commencer gratuitement'
     },
     {
       name: 'Pro',
-      price: '9€',
+      price: '2.99€',
       period: '/mois',
       description: 'Pour les professionnels',
       features: [
-        'Jusqu\'à 5 000 emails/mois',
-        'Catégories illimitées',
-        'Classification avancée',
-        'Intégrations multiples',
-        'Analyses détaillées',
-        'Support par email'
+        '📧 Synchronisation quotidienne automatique',
+        '🤖 20 questions IA par jour',
+        '📁 Catégories illimitées',
+        '🔍 Recherche avancée',
+        '📊 Analyses et statistiques',
+        '🔔 Notifications en temps réel',
+        '📝 Aide à la rédaction IA',
+        '🎯 Priorisation intelligente'
       ],
       notIncluded: [
-        'Support téléphonique',
-        'Onboarding personnalisé'
+        '❌ Questions IA illimitées',
+        '❌ Synchronisation en temps réel',
+        '❌ Assistant IA personnel avancé'
       ],
       popular: true,
       cta: 'Essayer Pro'
     },
     {
-      name: 'Entreprise',
-      price: '29€',
+      name: 'Premium',
+      price: '5.99€',
       period: '/mois',
       description: 'Pour les équipes',
       features: [
-        'Emails illimités',
-        'Catégories illimitées',
-        'IA personnalisée',
-        'Toutes les intégrations',
-        'Analyses avancées',
-        'API complète',
-        'Support prioritaire',
-        'Onboarding personnalisé'
+        '🚀 Tout de l\'offre Pro',
+        '🤖 Questions IA illimitées',
+        '⚡ Synchronisation en temps réel',
+        '🧠 Assistant IA personnel avancé',
+        '📈 Analytics approfondies',
+        '🔗 Intégrations tierces',
+        '👥 Support prioritaire 24/7',
+        '🎨 Interface personnalisable',
+        '📱 Application mobile dédiée',
+        '🔒 Sécurité entreprise'
       ],
       notIncluded: [],
       popular: false,
@@ -145,7 +153,7 @@ export function PricingPage() {
             {plans.map((plan, index) => (
               <motion.div
                 key={plan.name}
-                className={`relative bg-white rounded-3xl p-8 shadow-lg ${
+                className={`relative bg-white rounded-3xl p-8 shadow-lg flex flex-col h-full ${
                   plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''
                 }`}
                 initial={{ opacity: 0, y: 20 }}
@@ -154,8 +162,8 @@ export function PricingPage() {
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium">
-                      Le plus populaire
+                    <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">
+                      ⭐ Le plus populaire
                     </span>
                   </div>
                 )}
@@ -169,7 +177,7 @@ export function PricingPage() {
                   </div>
                 </div>
 
-                <ul className="space-y-4 mb-8">
+                <ul className="space-y-4 mb-8 flex-grow">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-start">
                       <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -178,7 +186,7 @@ export function PricingPage() {
                   ))}
                   {plan.notIncluded.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-start opacity-50">
-                      <X className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
+                      <X className="h-5 w-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
                       <span className="text-gray-500">{feature}</span>
                     </li>
                   ))}
@@ -186,7 +194,7 @@ export function PricingPage() {
 
                 <button
                   onClick={handleGoogleAuth}
-                  className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 ${
+                  className={`w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 mt-auto ${
                     plan.popular
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg hover:scale-105'
                       : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
