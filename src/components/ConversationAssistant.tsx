@@ -4,6 +4,7 @@ import { Send, Sparkles, User, Bot, Minimize2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { openaiService } from '../services/openai';
 import { Button } from './ui/button';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ChatMessage {
   id: string;
@@ -280,8 +281,18 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
                           : 'bg-white border border-gray-200 text-gray-800'
                     }
                   `}>
-                    <div className="whitespace-pre-wrap text-xs leading-snug">
-                      {message.content}
+                    <div className="text-xs leading-snug">
+                      {message.isUser ? (
+                        <div className="whitespace-pre-wrap">{message.content}</div>
+                      ) : (
+                        <MarkdownRenderer 
+                          content={message.content}
+                          className={
+                            message.type === 'error' ? 'prose-red' :
+                            message.type === 'success' ? 'prose-green' : 'prose-gray'
+                          }
+                        />
+                      )}
                     </div>
                     <div className={`text-xs mt-1 opacity-60 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
                       {formatTime(message.timestamp)}
