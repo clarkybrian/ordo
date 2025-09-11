@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, FolderOpen, Mail, RefreshCw, Plus, LogOut, User } from 'lucide-react'
+import { Search, FolderOpen, Mail, RefreshCw, User } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
@@ -9,7 +9,6 @@ import { SyncProgressBar } from '../components/SyncProgressBar'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
 import { supabase } from '../lib/supabase'
-import { signOut } from '../services/auth'
 import type { Email, Category, EmailProvider } from '../types'
 
 // Composant pour les logos des providers email
@@ -120,17 +119,24 @@ export function Dashboard() {
     importantEmails: 0
   })
 
-  // Fonction de déconnexion
-  const handleSignOut = useCallback(async () => {
-    try {
-      await signOut()
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error)
-      // Afficher une erreur simple sans toast
-      alert('Erreur lors de la déconnexion')
+  // Fonction pour extraire le nom depuis l'email
+  const getUserDisplayName = (email: string) => {
+    if (!email) return ''
+    
+    // Extraire la partie avant @ et transformer
+    const localPart = email.split('@')[0]
+    
+    // Si contient des points, considérer comme prénom.nom
+    if (localPart.includes('.')) {
+      const parts = localPart.split('.')
+      return parts
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ')
     }
-  }, [])
+    
+    // Sinon, capitaliser le nom d'utilisateur
+    return localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase()
+  }
 
   // Charger les données au montage du composant
   const loadDashboardData = useCallback(async () => {
@@ -383,8 +389,8 @@ export function Dashboard() {
         onProviderChange={handleProviderChange}
       />
 
-      {/* Header fixe - centré */}
-      <div className="sticky top-0 z-40 px-4 py-4 border-b border-gray-200 bg-gray-50/95 backdrop-blur-sm">
+      {/* Header Dashboard fixe - sous le header principal */}
+      <div className="fixed top-16 left-0 right-0 z-40 px-4 py-4 border-b border-gray-200 bg-white shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2 mb-2">
@@ -392,7 +398,7 @@ export function Dashboard() {
               {currentUser && (
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <User className="h-4 w-4" />
-                  <span>{currentUser.email}</span>
+                  <span className="font-medium text-gray-900">{getUserDisplayName(currentUser.email)}</span>
                   <span>•</span>
                   <span className="font-medium text-blue-600">{getProviderDisplayName()}</span>
                 </div>
@@ -404,40 +410,37 @@ export function Dashboard() {
           </div>
           
           <div className="flex items-center space-x-3">
+            {/* Barre de recherche intégrée */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher des emails..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
+              />
+            </div>
+            
             <Button
               onClick={handleManualSync}
-              variant="outline"
               size="sm"
               disabled={isSyncing || selectedProvider !== 'gmail'}
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
               Synchroniser
-            </Button>
-            
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvelle catégorie
-            </Button>
-            
-            <Button 
-              onClick={handleSignOut}
-              variant="outline" 
-              size="sm"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Déconnexion
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* Contenu principal avec marge pour les headers fixes */}
+      <div className="max-w-6xl mx-auto px-4 pt-20 pb-6">
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
-            <div className="sticky top-32">
+            <div className="sticky top-20">
               <Card className="max-h-[calc(100vh-200px)]">
                 <CardContent className="p-4 overflow-hidden flex flex-col">
                   <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
@@ -537,30 +540,9 @@ export function Dashboard() {
             {selectedProvider === 'gmail' ? (
               // Interface Gmail complète
               <>
-                {/* Barre de recherche fixe */}
-                <div className="sticky top-32 z-30 bg-gray-50/95 backdrop-blur-sm pb-4 mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Rechercher des emails..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                    <Button variant="outline" size="icon">
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Container des emails avec effet de shader au scroll */}
+                {/* Container des emails */}
                 <div className="relative">
-                  {/* Gradient de flou au top pour l'effet shader */}
-                  <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-20"></div>
-                  
                   {/* Liste des emails scrollable */}
                   <div className="space-y-4 pb-6">
                     {isLoading ? (
