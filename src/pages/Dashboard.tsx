@@ -458,7 +458,7 @@ export function Dashboard() {
       </div>
 
       {/* Contenu principal avec marge pour le header fixe */}
-      <div className={`max-w-6xl mx-auto px-4 pt-24 pb-6 transition-all duration-300 ${isAssistantOpen ? 'mr-112' : ''}`}>
+      <div className={`mx-auto px-4 pt-24 pb-6 transition-all duration-300 ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
@@ -557,7 +557,7 @@ export function Dashboard() {
           </div>
 
           {/* Zone de contenu principal avec scroll */}
-          <div className="lg:col-span-4 col-span-1">
+          <div className={`lg:col-span-4 col-span-1 ${isAssistantOpen ? 'lg:col-span-4' : ''}`}>
             {/* Contenu conditionnel selon le provider */}
             {selectedProvider === 'gmail' ? (
               // Interface Gmail complète
