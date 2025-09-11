@@ -224,39 +224,45 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Routes publiques */}
-        {!user && (
-          <Route path="/" element={<PublicLayout />}>
-            <Route index element={<LandingPage />} />
-            <Route path="features" element={<FeaturesPage />} />
-            <Route path="pricing" element={<PricingPage />} />
-            <Route path="about" element={<AboutPage />} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="auth/callback" element={<AuthCallbackPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
+        {/* Route de callback d'authentification - toujours accessible */}
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        
+        {/* Routes privées - utilisateur connecté */}
+        {user && (
+          <>
+            <Route 
+              path="/"
+              element={
+                <Layout 
+                  user={{
+                    email: user.email || '',
+                    subscription_type: 'free'
+                  }}
+                />
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="categories" element={<CategoriesPage />} />
+              <Route path="subscription" element={<SubscriptionPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </>
         )}
         
-        {/* Routes privées */}
-        {user && (
-          <Route 
-            path="/"
-            element={
-              <Layout 
-                user={{
-                  email: user.email || '',
-                  subscription_type: 'free'
-                }}
-              />
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="subscription" element={<SubscriptionPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
+        {/* Routes publiques - utilisateur non connecté */}
+        {!user && (
+          <>
+            <Route path="/" element={<PublicLayout />}>
+              <Route index element={<LandingPage />} />
+              <Route path="features" element={<FeaturesPage />} />
+              <Route path="pricing" element={<PricingPage />} />
+              <Route path="about" element={<AboutPage />} />
+              <Route path="login" element={<LoginPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
         )}
       </Routes>
     </Router>
