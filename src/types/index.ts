@@ -38,6 +38,8 @@ export interface Email {
   }
 }
 
+export type EmailProvider = 'gmail' | 'outlook' | 'yahoo';
+
 export interface Category {
   id: string
   user_id: string
