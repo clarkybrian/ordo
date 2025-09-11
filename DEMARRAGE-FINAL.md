@@ -2,7 +2,7 @@
 
 ## ✅ Application fonctionnelle !
 
-**Votre application Ordo fonctionne maintenant sur : http://localhost:5173**
+**Votre application Orton est déployée sur : https://orton.life**
 
 ## ⚠️ Note sur Node.js
 
@@ -26,7 +26,7 @@ L'application fonctionne malgré l'avertissement. Vous pouvez continuer à l'uti
 - Cliquez **"Run"** pour appliquer les corrections
 
 ### 2. Tester l'application
-1. Ouvrez http://localhost:5173
+1. Ouvrez https://orton.life
 2. Cliquez sur **"Commencer"**
 3. Connectez-vous avec Google
 4. Cliquez sur **"Synchroniser"** dans le Dashboard

@@ -25,7 +25,7 @@ Après l'exécution du script, vous devriez voir :
 
 ## 🧪 Étape 4 : Test
 
-1. Retournez sur votre application Ordo : http://localhost:5173
+1. Retournez sur votre application Orton : https://orton.life
 2. Connectez-vous avec Google
 3. Cliquez sur **"Synchroniser"** dans le Dashboard
 4. Vérifiez que :

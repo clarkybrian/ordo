@@ -37,8 +37,8 @@ async function configureGoogleAuth() {
     console.log('5. Sauvegardez les changements');
     
     console.log('\nVérifiez également les paramètres suivants:');
-    console.log('- Site URL: https://votredomaine.com (ou http://localhost:5173 pour le développement)');
-    console.log('- Redirect URLs: https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback,http://localhost:5173/auth/callback');
+    console.log('- Site URL: https://orton.life');
+    console.log('- Redirect URLs: https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback,https://orton.life/auth/callback');
     
   } catch (error) {
     console.error('❌ Erreur lors de la configuration:', error.message);
