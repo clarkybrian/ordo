@@ -1,17 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Classification simplifiée pour le navigateur
-let natural: any = null;
+
+let naturalLib: any = null;
 let stopword: any = null;
 let stemmer: any = null;
-
-// Types pour éviter les erreurs TS
-declare const require: any;
 
 // Chargement conditionnel des bibliothèques ML
 if (typeof window === 'undefined') {
   // Code serveur - charger les vraies bibliothèques
   try {
-    natural = eval('require')('natural');
+    naturalLib = eval('require')('natural');
     stopword = eval('require')('stopword');
     stemmer = eval('require')('stemmer').stemmer;
   } catch (error) {
@@ -19,7 +17,7 @@ if (typeof window === 'undefined') {
   }
 } else {
   // Code navigateur - utiliser des implémentations simplifiées
-  natural = {
+  naturalLib = {
     TfIdf: class MockTfIdf {
       addDocument() {}
       tfidfs() { return []; }
@@ -178,16 +176,16 @@ class AdvancedClassificationService {
   };
 
   constructor() {
-    if (natural && natural.WordTokenizer && natural.TfIdf) {
-      if (natural) {
-        this.tokenizer = new natural.WordTokenizer();
-        this.tfidf = new natural.TfIdf();
+    if (naturalLib && naturalLib.WordTokenizer && naturalLib.TfIdf) {
+      if (naturalLib) {
+        this.tokenizer = new naturalLib.WordTokenizer();
+        this.tfidf = new naturalLib.TfIdf();
       }
     } else {
       // Fallback pour le navigateur
-      if (natural) {
-        this.tokenizer = new natural.WordTokenizer();
-        this.tfidf = new natural.TfIdf();
+      if (naturalLib) {
+        this.tokenizer = new naturalLib.WordTokenizer();
+        this.tfidf = new naturalLib.TfIdf();
       }
     }
     

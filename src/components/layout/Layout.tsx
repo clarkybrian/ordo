@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { supabase } from '../../lib/supabase'
-import { Sidebar } from '../Sidebar'
+import Sidebar from '../Sidebar'
 import { DesktopNavigation } from '../DesktopNavigation'
 import ConversationAssistant from '../ConversationAssistant'
 import { useWindowSize } from '../../hooks/useWindowSize'

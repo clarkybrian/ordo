@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { supabase } from '../lib/supabase';
 import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
-import { chatbotLimiterService } from './chatbotLimiter';
+// import { chatbotLimiterService } from './chatbotLimiter';
 
 interface EmailContext {
   id: string;
@@ -349,18 +349,15 @@ JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"rea
     try {
       console.log(`🤖 Question chatbot: "${query}"`);
 
-      // Déterminer le type de question
-      const isDetailed = chatbotLimiterService.isDetailedQuestion(query);
+      // Déterminer le type de question (simplifié)
+      const isDetailed = query.length > 50 || query.includes('?');
       
-      // Vérifier les limites
-      const limitCheck = isDetailed 
-        ? await chatbotLimiterService.canAskDetailedQuestion(userId)
-        : await chatbotLimiterService.canAskQuickQuestion(userId);
+      // TODO: Réintégrer les limites de questions
+      const limitCheck = { allowed: true, remaining: 10 };
 
       if (!limitCheck.allowed) {
-        const resetTime = limitCheck.resetTime?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         return {
-          message: `⏱️ Limite atteinte ! ${isDetailed ? 'Questions détaillées' : 'Questions rapides'} épuisées. Prochaine remise à zéro à ${resetTime}.`,
+          message: `⏱️ Limite atteinte ! Trop de questions posées récemment.`,
           type: 'warning'
         };
       }
@@ -374,8 +371,8 @@ JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"rea
       // Analyser la question avec OpenAI
       const response = await this.processChatbotQuery(query, categoriesData, emailsData, isDetailed);
       
-      // Enregistrer la question posée
-      await chatbotLimiterService.recordQuestion(userId, isDetailed ? 'detailed' : 'quick');
+      // TODO: Enregistrer la question posée
+      // await chatbotLimiterService.recordQuestion(userId, isDetailed ? 'detailed' : 'quick');
       
       return response;
 

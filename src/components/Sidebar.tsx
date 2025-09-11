@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { Settings, X, CreditCard, FolderOpen } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { emailSyncService } from '../services/emailSync'
@@ -18,7 +18,7 @@ interface SidebarCategory {
 interface SubmenuItem {
   name: string;
   path: string;
-  icon?: string;
+  icon?: React.ReactNode;
   color?: string;
   count?: number;
 }
@@ -32,7 +32,7 @@ interface SidebarProps {
   };
 }
 
-export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
   const [categories, setCategories] = useState<SidebarCategory[]>([]);
   const [expandedSection, setExpandedSection] = useState<string | null>('dashboard');
 
@@ -74,10 +74,10 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         ...categories.map((cat: SidebarCategory) => ({
           name: cat.name,
           path: `/dashboard?category=${cat.id}`,
-          icon: cat.icon,
+          icon: <span className="text-lg">{cat.icon}</span>,
           color: cat.color,
           count: cat.emails_count
-        } as SubmenuItem))
+        }))
       ] as SubmenuItem[]
     },
     {
@@ -103,26 +103,18 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
 
   // Gestion du state de l'accordéon par le composant Accordion lui-même
 
-  const sidebarVariants = {
+  const sidebarVariants: Variants = {
     hidden: {
-      x: '-100%',
-      opacity: 0,
-      transition: {
-        type: 'tween' as const,
-        duration: 0.3
-      }
+      x: -100,
+      opacity: 0
     },
     visible: {
-      x: '0%',
-      opacity: 1,
-      transition: {
-        type: 'tween' as const,
-        duration: 0.3
-      }
+      x: 0,
+      opacity: 1
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (): Promise<void> => {
     try {
       await supabase.auth.signOut();
       window.location.href = '/login';
@@ -218,12 +210,9 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
                             >
                               <div className="flex items-center space-x-2">
                                 {subItem.icon && (
-                                  <span 
-                                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center"
-                                    style={{ color: subItem.color }}
-                                  >
+                                  <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
                                     {subItem.icon}
-                                  </span>
+                                  </div>
                                 )}
                                 <span>{subItem.name}</span>
                               </div>
@@ -265,3 +254,5 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose, user }) => {
     </AnimatePresence>
   );
 };
+
+export default Sidebar;
