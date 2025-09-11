@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { openaiService, type ChatbotResponse } from '../services/openai';
-import { chatbotCleanupService } from '../services/chatbotCleanup';
 import { Button } from './ui/button';
 
 interface ChatMessage {
@@ -51,7 +50,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
       const statsInterval = setInterval(loadStats, 30000);
       
       // Démarrer le nettoyage automatique
-      chatbotCleanupService.startAutoCleanup();
+      // chatbotCleanupService.startAutoCleanup();
       
       // Nettoyage lors de la fermeture
       return () => {
@@ -63,7 +62,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   useEffect(() => {
     // Nettoyage lors du démontage du composant
     return () => {
-      chatbotCleanupService.stopAutoCleanup();
+      // chatbotCleanupService.stopAutoCleanup();
     };
   }, []);
 
@@ -214,7 +213,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
       ]);
 
       // Limiter le nombre de messages pour éviter l'accumulation
-      await chatbotCleanupService.limitUserMessages(user.id, 100);
+      // await chatbotCleanupService.limitUserMessages(user.id, 100);
 
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
