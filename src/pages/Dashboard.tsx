@@ -15,7 +15,8 @@ import type { Email, Category, EmailProvider } from '../types'
 const EmailProviderLogos: React.FC<{
   selectedProvider: EmailProvider;
   onProviderChange: (provider: EmailProvider) => void;
-}> = ({ selectedProvider, onProviderChange }) => {
+  isChatbotOpen: boolean;
+}> = ({ selectedProvider, onProviderChange, isChatbotOpen }) => {
   const providers = [
     {
       id: 'gmail' as EmailProvider,
@@ -41,7 +42,7 @@ const EmailProviderLogos: React.FC<{
   ];
 
   return (
-    <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50">
+    <div className={`fixed left-4 top-1/2 transform -translate-y-1/2 z-50 transition-all duration-300 ${isChatbotOpen ? '-translate-x-20' : ''}`}>
       <div className="flex flex-col space-y-4 bg-white rounded-xl shadow-lg p-3 border border-gray-200">
         {providers.map((provider) => (
           <motion.button
@@ -111,6 +112,9 @@ export function Dashboard() {
   
   // État pour le provider sélectionné
   const [selectedProvider, setSelectedProvider] = useState<EmailProvider>('gmail')
+  
+  // État pour le chatbot
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
   
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -387,6 +391,7 @@ export function Dashboard() {
       <EmailProviderLogos 
         selectedProvider={selectedProvider}
         onProviderChange={handleProviderChange}
+        isChatbotOpen={isChatbotOpen}
       />
 
       {/* Header Dashboard fixe - sous le header principal */}
@@ -410,6 +415,15 @@ export function Dashboard() {
           </div>
           
           <div className="flex items-center space-x-3">
+            {/* Bouton chatbot temporaire pour test */}
+            <Button
+              onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+              size="sm"
+              variant="outline"
+            >
+              Chat {isChatbotOpen ? '✕' : '💬'}
+            </Button>
+            
             {/* Barre de recherche intégrée */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -436,11 +450,11 @@ export function Dashboard() {
       </div>
 
       {/* Contenu principal avec marge pour les headers fixes */}
-      <div className="max-w-6xl mx-auto px-4 pt-20 pb-6">
+      <div className={`max-w-6xl mx-auto px-4 pt-20 pb-6 transition-all duration-300 ${isChatbotOpen ? 'mr-80' : ''}`}>
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-0">
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
-            <div className="fixed top-42 left-[max(1rem,calc((100vw-72rem)/2+1rem))] w-[calc(21.633%-2rem)] z-40">
+            <div className={`sticky top-20 z-40 transition-all duration-300 ${isChatbotOpen ? 'ml-0' : ''}`}>
               <Card className="max-h-[calc(100vh-120px)] overflow-auto">
                 <CardContent className="p-4 overflow-hidden flex flex-col">
                   <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
