@@ -435,7 +435,7 @@ export function Dashboard() {
         console.log(`✅ Email marqué comme lu`);
         
         // Recharger les données pour mettre à jour l'interface
-        await loadEmails();
+        await loadDashboardData();
         console.log(`🔄 Interface mise à jour`);
       } catch (error) {
         console.error('❌ Erreur lors de la mise à jour du statut de lecture:', error);
