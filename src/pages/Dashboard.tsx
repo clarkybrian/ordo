@@ -383,9 +383,9 @@ export function Dashboard() {
         onProviderChange={handleProviderChange}
       />
 
-      {/* Header avec marge gauche pour les logos */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4 ml-20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      {/* Header sans fond blanc - centré */}
+      <div className="px-4 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
@@ -432,8 +432,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Contenu principal avec marge gauche pour les logos */}
-      <div className="max-w-7xl mx-auto p-4 ml-20">
+      {/* Contenu principal parfaitement centré */}
+      <div className="max-w-5xl mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar - Filtres et catégories - Toujours affiché */}
           <div className="lg:col-span-1 hidden lg:block">
