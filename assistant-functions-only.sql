@@ -21,6 +21,7 @@ BEGIN
     FROM assistant_usage 
     WHERE user_id = user_uuid;
     
+    
     -- Si aucun enregistrement n'existe, en créer un
     IF NOT FOUND THEN
         INSERT INTO assistant_usage (user_id, question_count, last_reset_date)
