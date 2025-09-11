@@ -340,7 +340,7 @@ export function Dashboard() {
     if (!config) return null
 
     return (
-      <div className="col-span-1 lg:col-span-3">
+      <div className="col-span-1 lg:col-span-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -383,9 +383,9 @@ export function Dashboard() {
         onProviderChange={handleProviderChange}
       />
 
-      {/* Header sans fond blanc - centré */}
-      <div className="px-4 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      {/* Header fixe - centré */}
+      <div className="sticky top-0 z-40 px-4 py-4 border-b border-gray-200 bg-gray-50/95 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-2xl font-bold text-gray-900">Mes Emails</h1>
@@ -432,21 +432,22 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Contenu principal parfaitement centré */}
-      <div className="max-w-5xl mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Filtres et catégories - Toujours affiché */}
-          <div className="lg:col-span-1 hidden lg:block">
-            <Card className="mb-6">
-              <CardContent className="p-4">
-                <h2 className="font-semibold text-gray-900 mb-4">Filtres rapides</h2>
+      {/* Contenu principal */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
+          {/* Sidebar - Filtres et catégories */}
+          <div className="lg:col-span-2 hidden lg:block">
+            <div className="sticky top-32">
+              <Card className="max-h-[calc(100vh-200px)]">
+                <CardContent className="p-4 overflow-hidden flex flex-col">
+                  <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
                 
-                <div className="space-y-2 mb-6">
+                <div className="space-y-1 mb-4">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedCategory(null)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === null 
                         ? 'bg-primary text-primary-foreground' 
                         : 'hover:bg-gray-100'
@@ -462,7 +463,7 @@ export function Dashboard() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedCategory('unread')}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === 'unread'
                         ? 'bg-primary text-primary-foreground' 
                         : 'hover:bg-gray-100'
@@ -478,7 +479,7 @@ export function Dashboard() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedCategory('important')}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    className={`w-full text-left p-2.5 rounded-lg transition-colors ${
                       selectedCategory === 'important'
                         ? 'bg-primary text-primary-foreground' 
                         : 'hover:bg-gray-100'
@@ -491,118 +492,131 @@ export function Dashboard() {
                   </motion.button>
                 </div>
                 
-                <h2 className="font-semibold text-gray-900 mb-4 flex items-center">
+                <h2 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FolderOpen className="h-4 w-4 mr-2" />
                   Catégories
                 </h2>
-                <div className="space-y-2">
-
-                  {/* Filtrer les catégories avec au moins 1 email */}
-                  {categories
-                    .filter(category => (category.emails_count || 0) > 0)
-                    .map((category) => (
-                    <motion.button
-                      key={category.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedCategory === category.id 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span>{category.icon}</span>
-                          <span>{category.name}</span>
+                
+                {/* Zone scrollable pour les catégories */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  <div className="space-y-1">
+                    {/* Filtrer les catégories avec au moins 1 email */}
+                    {categories
+                      .filter(category => (category.emails_count || 0) > 0)
+                      .map((category) => (
+                      <motion.button
+                        key={category.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`w-full text-left p-2.5 rounded-lg transition-colors ${
+                          selectedCategory === category.id 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span>{category.icon}</span>
+                            <span>{category.name}</span>
+                          </div>
+                          <span className="text-sm">{category.emails_count || 0}</span>
                         </div>
-                        <span className="text-sm">{category.emails_count || 0}</span>
-                      </div>
-                    </motion.button>
-                  ))}
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          {/* Contenu principal - Conditionnel selon le provider */}
-          {selectedProvider === 'gmail' ? (
-            // Interface Gmail complète (comme l'ancien Dashboard)
-            <div className="lg:col-span-3 col-span-1">
-              {/* Barre de recherche */}
-              <div className="mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher des emails..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
+          {/* Zone de contenu principal avec scroll */}
+          <div className="lg:col-span-4 col-span-1">
+            {/* Contenu conditionnel selon le provider */}
+            {selectedProvider === 'gmail' ? (
+              // Interface Gmail complète
+              <>
+                {/* Barre de recherche fixe */}
+                <div className="sticky top-32 z-30 bg-gray-50/95 backdrop-blur-sm pb-4 mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher des emails..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <Button variant="outline" size="icon">
+                      <Filter className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button variant="outline" size="icon">
-                    <Filter className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
 
-              {/* Liste des emails */}
-              <div className="space-y-4">
-                {isLoading ? (
-                  // Skeleton loading
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                            <div className="h-3 bg-gray-200 rounded w-16"></div>
-                          </div>
-                          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                          <div className="h-3 bg-gray-200 rounded w-full"></div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <AnimatePresence>
-                    {filteredEmails.length > 0 ? (
-                      filteredEmails.map((email) => (
-                        <EmailCard
-                          key={email.id}
-                          email={email}
-                          onClick={() => handleEmailClick(email)}
-                          onStarClick={() => console.log('Toggle important:', email.id)}
-                          onMoveCategory={() => console.log('Déplacer email:', email.id)}
-                        />
+                {/* Container des emails avec effet de shader au scroll */}
+                <div className="relative">
+                  {/* Gradient de flou au top pour l'effet shader */}
+                  <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-gray-50 to-transparent pointer-events-none z-20"></div>
+                  
+                  {/* Liste des emails scrollable */}
+                  <div className="space-y-4 pb-6">
+                    {isLoading ? (
+                      // Skeleton loading
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <Card key={i} className="animate-pulse">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                                <div className="h-3 bg-gray-200 rounded w-16"></div>
+                              </div>
+                              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                              <div className="h-3 bg-gray-200 rounded w-full"></div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))
                     ) : (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-center py-12"
-                      >
-                        <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun email trouvé</h3>
-                        <p className="text-gray-500">
-                          {selectedCategory 
-                            ? "Aucun email dans cette catégorie"
-                            : "Essayez de modifier votre recherche"
-                          }
-                        </p>
-                      </motion.div>
+                      <AnimatePresence>
+                        {filteredEmails.length > 0 ? (
+                          filteredEmails.map((email) => (
+                            <EmailCard
+                              key={email.id}
+                              email={email}
+                              onClick={() => handleEmailClick(email)}
+                              onStarClick={() => console.log('Toggle important:', email.id)}
+                              onMoveCategory={() => console.log('Déplacer email:', email.id)}
+                            />
+                          ))
+                        ) : (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center py-12"
+                          >
+                            <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun email trouvé</h3>
+                            <p className="text-gray-500">
+                              {selectedCategory 
+                                ? "Aucun email dans cette catégorie"
+                                : "Essayez de modifier votre recherche"
+                              }
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     )}
-                  </AnimatePresence>
-                )}
-              </div>
-            </div>
-          ) : (
-            // Interface vide pour Outlook/Yahoo
-            renderEmptyState()
-          )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Interface vide pour Outlook/Yahoo
+              renderEmptyState()
+            )}
+          </div>
         </div>
       </div>
 
