@@ -12,6 +12,7 @@ import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { CategoriesPage } from './pages/CategoriesPage'
 import SentEmailsPage from './pages/SentEmailsPage'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 import type { User } from '@supabase/supabase-js'
 
 // Pages temporaires pour la démo
@@ -267,6 +268,9 @@ function App() {
           </>
         )}
       </Routes>
+      
+      {/* Composant PWA Install Prompt */}
+      <PWAInstallPrompt />
     </Router>
   )
 }

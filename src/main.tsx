@@ -7,7 +7,7 @@ import App from './App.tsx'
 
 // En développement, on permet de désactiver le service worker
 const isDev = import.meta.env.DEV
-const shouldRegisterSW = !isDev || localStorage.getItem('enableSW') === 'true'
+const shouldRegisterSW = true // Toujours activer pour tester PWA
 
 // Enregistrement du service worker pour la PWA
 if ('serviceWorker' in navigator) {
