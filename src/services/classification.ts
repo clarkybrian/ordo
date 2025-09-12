@@ -210,21 +210,11 @@ class AdvancedClassificationService {
         return patternResult;
       }
 
-      // 3. CRÉATION AUTOMATIQUE DÉSACTIVÉE - Utiliser uniquement les 8 catégories de base
-      console.log('🚫 Création automatique désactivée - classification forcée dans les 8 catégories');
-      // const autoCategory = await this.detectAndCreateCategory(features, existingCategories);
-      const autoCategory = null; // FORCER LA DÉSACTIVATION
-      if (autoCategory) {
-        return {
-          category_id: autoCategory.id,
-          confidence: 0.6,
-          auto_created: true,
-          suggested_categories: [autoCategory]
-        };
-      }
-
-      // 4. Fallback vers "Non classés"
-      return await this.fallbackToUnclassified(existingCategories);
+      // 3. CRÉATION AUTOMATIQUE TOTALEMENT DÉSACTIVÉE
+      console.log('🚫 AUCUNE création automatique - classification forcée uniquement');
+      
+      // 4. Classification forcée intelligente
+      return await this.forceClassificationIntoExisting(features, email, existingCategories);
 
     } catch (error) {
       console.error('❌ Erreur classification:', error);
@@ -744,9 +734,118 @@ class AdvancedClassificationService {
     return icons[Math.floor(Math.random() * icons.length)];
   }
 
+  /**
+   * Classification forcée intelligente - AUCUNE création automatique
+   * Classe OBLIGATOIREMENT dans une catégorie existante
+   */
+  private async forceClassificationIntoExisting(features: EmailFeatures, email: ProcessedEmail, existingCategories: Category[]): Promise<ClassificationResult> {
+    console.log('🎯 Classification forcée dans les catégories existantes uniquement');
+    
+    const scores: Array<{ category: Category, score: number, reason: string }> = [];
+    
+    // Analyser chaque catégorie existante (y compris celles créées par l'utilisateur)
+    for (const category of existingCategories) {
+      let score = 0;
+      let reason = '';
+      
+      // 1. Score basé sur le nom de la catégorie
+      const categoryNameLower = category.name.toLowerCase();
+      const text = `${email.subject} ${email.body_text}`.toLowerCase();
+      const sender = email.sender_email.toLowerCase();
+      
+      // 2. Correspondance directe avec le nom de catégorie
+      if (text.includes(categoryNameLower)) {
+        score += 0.8;
+        reason = `Mention directe de "${category.name}"`;
+      }
+      
+      // 3. Utiliser les patterns prédéfinis si la catégorie correspond
+      const pattern = this.categoryPatterns[category.name];
+      if (pattern) {
+        const patternScore = this.calculatePatternScore(features, pattern, email);
+        score += patternScore * 0.7;
+        reason += ` + Pattern ${category.name} (${patternScore.toFixed(2)})`;
+      }
+      
+      // 4. Score basé sur les mots-clés personnalisés de la catégorie
+      if (category.keywords && category.keywords.length > 0) {
+        let keywordMatches = 0;
+        for (const keyword of category.keywords) {
+          if (text.includes(keyword.toLowerCase())) {
+            keywordMatches++;
+          }
+        }
+        if (keywordMatches > 0) {
+          score += (keywordMatches / category.keywords.length) * 0.6;
+          reason += ` + Mots-clés (${keywordMatches}/${category.keywords.length})`;
+        }
+      }
+      
+      // 5. Analyse sémantique simple pour catégories personnalisées
+      if (!this.categoryPatterns[category.name]) {
+        // Pour les catégories créées par l'utilisateur (ex: "Foot")
+        const semanticScore = this.calculateSemanticSimilarity(categoryNameLower, text);
+        score += semanticScore * 0.5;
+        reason += ` + Sémantique (${semanticScore.toFixed(2)})`;
+      }
+      
+      if (score > 0.01) { // Seuil très bas pour capturer toutes les correspondances
+        scores.push({ category, score, reason });
+      }
+    }
+    
+    // Trier par score décroissant
+    scores.sort((a, b) => b.score - a.score);
+    
+    if (scores.length > 0) {
+      const bestMatch = scores[0];
+      console.log(`✅ Email forcé dans "${bestMatch.category.name}" (score: ${bestMatch.score.toFixed(3)}) - ${bestMatch.reason}`);
+      
+      return {
+        category_id: bestMatch.category.id,
+        confidence: bestMatch.score,
+        suggested_categories: scores.slice(0, 3).map(s => s.category)
+      };
+    }
+    
+    // Si vraiment aucune correspondance, forcer dans "Publicité" (fourre-tout)
+    const fallbackCategory = existingCategories.find(cat => cat.name === 'Publicité') || existingCategories[0];
+    console.log(`⚠️ Aucune correspondance - Email forcé dans "${fallbackCategory.name}" (fallback)`);
+    
+    return {
+      category_id: fallbackCategory.id,
+      confidence: 0.1,
+      suggested_categories: [fallbackCategory]
+    };
+  }
+  
+  /**
+   * Calcul de similarité sémantique simple
+   */
+  private calculateSemanticSimilarity(categoryName: string, text: string): number {
+    const categoryWords = categoryName.split(/\s+/);
+    let matches = 0;
+    
+    for (const word of categoryWords) {
+      if (word.length > 2) {
+        // Correspondance exacte
+        if (text.includes(word)) {
+          matches += 1;
+        }
+        // Correspondance partielle (racine du mot)
+        else if (word.length > 4) {
+          const root = word.substring(0, word.length - 1);
+          if (text.includes(root)) {
+            matches += 0.7;
+          }
+        }
+      }
+    }
+    
+    return Math.min(matches / categoryWords.length, 1.0);
+  }
+
   private async fallbackToUnclassified(existingCategories: Category[]): Promise<ClassificationResult> {
-    // ⚠️ PLUS DE "NON CLASSÉS" ! Classification forcée dans les 8 catégories de base
-    console.log('🎯 Classification forcée - aucun email ne reste non classé');
     
     // Ordre de priorité pour la classification forcée (du plus général au plus spécifique)
     const priorityOrder = ['Personnel', 'Publicité', 'Promotions', 'Travail', 'Banque', 'Factures', 'Billets', 'Réseaux sociaux'];

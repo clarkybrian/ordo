@@ -292,50 +292,30 @@ class EmailSyncService {
     return emails.filter(email => !existingIds.has(email.gmail_id));
   }
 
+  /**
+   * PLUS DE CRÉATION AUTOMATIQUE - Récupère seulement les catégories existantes
+   */
   private async ensureDefaultCategories(userId: string): Promise<Category[]> {
-    // Récupérer les catégories existantes
-    const { data: existingCategories } = await supabase
+    console.log('📋 Récupération des catégories existantes (AUCUNE création automatique)');
+    
+    // Récupérer SEULEMENT les catégories existantes
+    const { data: existingCategories, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .order('name');
 
-    const categories = [...(existingCategories || [])];
+    if (error) {
+      console.error('❌ Erreur récupération catégories:', error);
+      return [];
+    }
 
-    // Catégories par défaut à créer si elles n'existent pas
-    const defaultCategories = [
-      { name: 'Travail', color: '#3B82F6', icon: '💼' },
-      { name: 'Offres d\'emploi', color: '#10B981', icon: '💼' },
-      { name: 'Réseaux sociaux', color: '#8B5CF6', icon: '📱' },
-      { name: 'Promotions', color: '#F59E0B', icon: '🏷️' },
-      { name: 'Banque', color: '#EF4444', icon: '🏦' }
-    ];
-
-    // Vérifier quelles catégories par défaut manquent
-    const existingNames = categories.map(cat => cat.name.toLowerCase());
-    const missingCategories = defaultCategories.filter(
-      defCat => !existingNames.includes(defCat.name.toLowerCase())
-    );
-
-    // Créer les catégories manquantes
-    for (const categoryData of missingCategories) {
-      try {
-        const { data: newCategory, error } = await supabase
-          .from('categories')
-          .insert([{
-            ...categoryData,
-            user_id: userId,
-            is_default: true
-          }])
-          .select()
-          .single();
-
-        if (!error && newCategory) {
-          categories.push(newCategory);
-          console.log(`✅ Catégorie par défaut créée: "${categoryData.name}"`);
-        }
-      } catch (error) {
-        console.error(`❌ Erreur création catégorie "${categoryData.name}":`, error);
-      }
+    const categories = existingCategories || [];
+    console.log(`✅ ${categories.length} catégories existantes récupérées:`, categories.map(cat => cat.name));
+    
+    // Vérifier qu'il y a au moins une catégorie (sécurité)
+    if (categories.length === 0) {
+      console.warn('⚠️ AUCUNE catégorie trouvée! L\'utilisateur doit en créer au moins une.');
     }
 
     return categories;

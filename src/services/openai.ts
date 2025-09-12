@@ -697,33 +697,29 @@ Données: ${categories.length} catégories (${usedCategories.length} utilisées)
   }
 
   /**
-   * Prompt système pour assistant autonome et intelligent
+   * Prompt système pour assistant avec émojis et accès total aux emails
    */
   private buildAutonomousSystemPrompt(): string {
-    return `Tu es un assistant email intelligent et autonome pour l'application Ordo. Tu as un accès COMPLET à tous les emails de l'utilisateur et tu peux tout faire.
+    return `Tu es un assistant email intelligent pour l'application Ordo avec un ACCÈS COMPLET à tous les emails de l'utilisateur. 
 
 🎯 TES CAPACITÉS COMPLÈTES:
 - Analyser et résumer tous les emails en détail
-- Aider à rédiger des réponses personnalisées
+- Aider à rédiger des réponses personnalisées  
 - Rechercher des informations spécifiques dans les emails
-- Donner des conseils avancés sur la gestion des emails
-- Analyser les tendances, patterns et comportements
+- Donner des statistiques détaillées sur les emails
+- Proposer des exemples de réponses (quand demandé)
 - Identifier les emails importants et urgents
-- Proposer des actions concrètes et détaillées
 
 📧 ACCÈS TOTAL AUX DONNÉES:
 - Tu connais le contenu intégral de chaque email
 - Tu peux analyser les expéditeurs, dates, sujets, corps
 - Tu peux croiser les informations entre emails
 - Tu as accès aux catégories, labels et métadonnées
-- Tu peux voir l'historique complet des conversations
 
 💬 TON STYLE DE RÉPONSE:
 - Réponds de manière naturelle et conversationnelle
 - Utilise BEAUCOUP d'emojis pour illustrer tes réponses (📧 📝 📊 ⭐ 🔍 💡 🎯 📅 👥 ✅ ❌ 🚀 💯 📈 📋 🔥 ⚡ 🎉 etc.)
-- Sois précis et détaillé dans tes analyses
-- Propose des actions concrètes avec emojis appropriés
-- Adapte la longueur selon la complexité de la question
+- Sois précis mais expressif avec les émojis
 - Structure tes réponses avec des emojis pour chaque section
 - Utilise des emojis spécifiques selon le contexte :
   • 📧 pour les emails
@@ -738,59 +734,62 @@ Données: ${categories.length} catégories (${usedCategories.length} utilisées)
   • ✅ pour les actions accomplies
   • 🚀 pour les suggestions d'amélioration
 
-� AUTONOMIE TOTALE:
-- Pas de restriction sur le type de questions
-- Accès total au contenu des emails
-- Peux aider à rédiger des réponses complètes
-- Peux faire des analyses approfondies
-- Traite directement les demandes sans proposer d'options
-- Donne des réponses exhaustives quand nécessaire
+⚖️ ÉQUILIBRE:
+- Minimum 200 caractères, maximum 1000 caractères
+- Réponds précisément à la question avec des émojis expressifs
+- Pour un salut simple, réponds avec des émojis sympas
+- Adapte la longueur selon la complexité de la demande
 
-⚖️ ÉQUILIBRE INTELLIGENT:
-- Pour questions simples: réponses concises et directes
-- Pour questions complexes: analyses détaillées
-- Toujours utile et actionnable
-- Privilégie la qualité de l'information`;
+🚀 AUTONOMIE TOTALE:
+- Accès complet aux données emails
+- Traite directement les demandes
+- Utilise toutes les informations disponibles`;
   }
 
   /**
-   * Contenu utilisateur avec contexte complet pour analyse autonome
+   * Contenu utilisateur avec contexte complet des emails
    */
   private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[]): string {
-    const recentEmails = emails.slice(0, 20); // Top 20 pour analyse approfondie
+    const recentEmails = emails.slice(0, 15); // Plus d'emails pour l'analyse
     const unreadCount = emails.filter(e => !e.is_read).length;
     const importantCount = emails.filter(e => e.is_important).length;
     
+    // Pour les salutations simples
+    if (query.toLowerCase().includes('salut') || query.toLowerCase().includes('bonjour') || query.toLowerCase().includes('hello')) {
+      return `Question: "${query}"
+
+📊 Contexte rapide: Tu as accès à ${emails.length} emails (${unreadCount} non lus, ${importantCount} importants)
+Réponds avec des émojis sympas !`;
+    }
+
     // Statistiques par catégorie
     const categoryStats = categories.map(cat => {
       const emailsInCat = emails.filter(e => e.category?.name === cat.name);
-      return `${cat.name}: ${emailsInCat.length} emails`;
+      return `${cat.name}: ${emailsInCat.length}`;
     });
 
-    return `❓ QUESTION: "${query}"
+    return `❓ Question: "${query}"
 
-📊 STATISTIQUES GLOBALES:
+📊 STATISTIQUES COMPLÈTES:
 - Total: ${emails.length} emails
-- Non lus: ${unreadCount} emails
+- Non lus: ${unreadCount} emails  
 - Importants: ${importantCount} emails
-- Catégories actives: ${categories.length}
+- Catégories: ${categories.length}
 
-📧 EMAILS RÉCENTS (${recentEmails.length} derniers):
+📧 EMAILS RÉCENTS (${recentEmails.length}):
 ${recentEmails.map((email, i) => {
-  const preview = email.body_text || email.snippet || email.subject || '';
+  const preview = email.body_text || email.snippet || '';
   return `${i+1}. 📧 "${email.subject || 'Sans sujet'}"
-   👤 De: ${email.sender_name || email.sender_email}
+   👤 ${email.sender_name || email.sender_email}
    📅 ${new Date(email.received_at).toLocaleDateString('fr-FR')}
    📂 ${email.category?.name || 'Non classé'}
    ${email.is_important ? '⭐ Important' : ''}${!email.is_read ? ' 🔵 Non lu' : ' ✅ Lu'}
-   💬 Aperçu: "${preview.substring(0, 150)}..."
-   ${email.labels && email.labels.length > 0 ? `🏷️ Labels: ${email.labels.join(', ')}` : ''}`;
+   ${preview ? `💬 "${preview.substring(0, 100)}..."` : ''}`;
 }).join('\n\n')}
 
-🏷️ RÉPARTITION PAR CATÉGORIES:
-${categoryStats.join(' | ')}
+🏷️ CATÉGORIES: ${categoryStats.join(' | ')}
 
-🔍 CONTEXTE: Analyse cette question en utilisant toutes ces informations. Sois précis, détaillé et actionnable dans ta réponse.`;
+🎯 Utilise toutes ces informations pour répondre avec des émojis expressifs !`;
   }
 }
 

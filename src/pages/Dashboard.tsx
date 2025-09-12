@@ -507,27 +507,31 @@ export function Dashboard() {
         />
       )}
 
-      {/* Header Dashboard fixe - reste en haut sans bouger */}
-      <div className={`fixed top-16 left-0 z-30 px-4 py-4 border-b border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 ${isAssistantOpen ? 'right-112' : 'right-0'}`}>
+      {/* Header Dashboard - fixe seulement sur desktop, défile sur mobile */}
+      <div className={`${isMobile ? '' : 'fixed top-16 left-0 z-30'} px-4 border-b border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 ${isAssistantOpen && !isMobile ? 'right-112' : 'right-0'} ${
+        isMobile ? 'py-1' : 'py-4'
+      }`}>
         <div className="max-w-6xl mx-auto">
           {isMobile ? (
-            // Layout mobile - Organisation verticale simplifiée
-            <div className="space-y-3">
-              {/* Providers sur mobile - en haut */}
-              <EmailProviderLogos 
-                selectedProvider={selectedProvider}
-                onProviderChange={handleProviderChange}
-                isChatbotOpen={false}
-                onManualSync={handleManualSync}
-                isSyncing={isSyncing}
-              />
+            // Layout mobile - Organisation verticale simplifiée et compacte
+            <div className="space-y-2">
+              {/* Providers sur mobile - en haut avec taille réduite */}
+              <div className="transform scale-90 origin-left">
+                <EmailProviderLogos 
+                  selectedProvider={selectedProvider}
+                  onProviderChange={handleProviderChange}
+                  isChatbotOpen={false}
+                  onManualSync={handleManualSync}
+                  isSyncing={isSyncing}
+                />
+              </div>
               
               {/* Ligne 1: Seulement les statistiques (pas de titre ni nom utilisateur) */}
-              <div className="text-sm text-gray-600">
+              <div className="text-xs text-gray-600">
                 {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
               </div>
               
-              {/* Ligne 2: Barre de recherche */}
+              {/* Ligne 2: Barre de recherche compacte */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -535,7 +539,7 @@ export function Dashboard() {
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
+                  className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
                 />
               </div>
             </div>
@@ -587,9 +591,9 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Contenu principal avec marge pour le header fixe */}
+      {/* Contenu principal avec marge pour le header fixe seulement sur desktop */}
       <div className={`mx-auto px-4 pb-6 transition-all duration-300 ${
-        'pt-24'
+        isMobile ? 'pt-0' : 'pt-20'
       } ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
           {/* Sidebar - Filtres et catégories */}
@@ -743,18 +747,87 @@ export function Dashboard() {
                           ))
                         ) : (
                           <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-center py-12"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`text-center ${isMobile ? 'py-8 mt-8' : 'py-16'}`}
                           >
-                            <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun email trouvé</h3>
-                            <p className="text-gray-500">
+                            {/* Icône positionnée différemment selon l'écran */}
+                            <div className={`${isMobile ? 'mb-4' : 'mb-3'}`}>
+                              <div className={`mx-auto bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center ${
+                                isMobile ? 'w-16 h-16' : 'w-14 h-14'
+                              }`}>
+                                <Mail className={`text-blue-500 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'}`} />
+                              </div>
+                            </div>
+
+                            {/* Titre principal compact */}
+                            <h3 className={`font-bold text-gray-900 ${isMobile ? 'text-lg mb-2' : 'text-xl mb-3'}`}>
                               {selectedCategory 
                                 ? "Aucun email dans cette catégorie"
-                                : "Essayez de modifier votre recherche"
+                                : "Commencez votre expérience Orton !"
                               }
-                            </p>
+                            </h3>
+
+                            {/* Message d'invitation compact */}
+                            {!selectedCategory && (
+                              <>
+                                <p className={`text-gray-600 mx-auto leading-relaxed ${isMobile ? 'text-sm max-w-xs px-4 mb-3' : 'text-base max-w-md mb-4'}`}>
+                                  Synchronisez vos emails pour découvrir notre IA de classification. 
+                                  Organisation automatique et assistant intelligent inclus !
+                                </p>
+
+                                {/* Bouton de synchronisation compact */}
+                                <div className={`${isMobile ? 'mb-3' : 'mb-4'}`}>
+                                  <Button
+                                    onClick={handleManualSync}
+                                    disabled={isSyncing}
+                                    size={isMobile ? "default" : "lg"}
+                                    className={`bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 ${
+                                      isMobile ? 'px-4 py-2 text-base font-medium' : 'px-6 py-3 text-lg font-medium'
+                                    }`}
+                                  >
+                                    {isSyncing ? (
+                                      <>
+                                        <RefreshCw className={`mr-2 animate-spin ${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                                        {isMobile ? 'Sync...' : 'Synchronisation...'}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <RefreshCw className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                                        {isMobile ? 'Synchroniser' : 'Synchroniser mes emails'}
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+
+                                {/* Message unifié plus compact */}
+                                <div className={`bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 ${
+                                  isMobile ? 'p-3 mx-4' : 'p-4 max-w-sm mx-auto'
+                                }`}>
+                                  <div className={`flex items-center ${isMobile ? 'space-x-2' : 'space-x-3'}`}>
+                                    <div className="flex-shrink-0">
+                                      <span className={`${isMobile ? 'text-base' : 'text-lg'}`}>✨</span>
+                                    </div>
+                                    <div className="text-left">
+                                      <p className={`text-blue-700 font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                                        {isMobile 
+                                          ? 'Assistant IA après sync !'
+                                          : 'Assistant IA intégré après synchronisation'
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {/* Message pour catégorie vide */}
+                            {selectedCategory && (
+                              <p className="text-gray-500 max-w-sm mx-auto">
+                                Cette catégorie ne contient aucun email pour le moment. 
+                                Essayez une synchronisation ou changez de catégorie.
+                              </p>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
