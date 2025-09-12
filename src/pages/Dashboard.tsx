@@ -428,6 +428,74 @@ export function Dashboard() {
     setIsEmailModalOpen(true)
   }
 
+  // Marquer/démarquer comme important
+  const handleToggleImportant = async (emailId: string) => {
+    try {
+      const email = emails.find(e => e.id === emailId)
+      if (!email) return
+
+      const newImportantStatus = !email.is_important
+      
+      // Mettre à jour dans la base de données
+      const { error } = await supabase
+        .from('emails')
+        .update({ is_important: newImportantStatus })
+        .eq('id', emailId)
+
+      if (error) {
+        console.error('Erreur toggle important:', error)
+        return
+      }
+
+      // Mettre à jour l'état local
+      setEmails(prevEmails => 
+        prevEmails.map(e => 
+          e.id === emailId ? { ...e, is_important: newImportantStatus } : e
+        )
+      )
+
+      // Recharger les statistiques
+      loadDashboardData()
+
+      console.log(`⭐ Email ${newImportantStatus ? 'marqué' : 'démarqué'} comme important`)
+    } catch (error) {
+      console.error('Erreur toggle important:', error)
+    }
+  }
+
+  // Marquer comme lu
+  const handleMarkAsRead = async (emailId: string) => {
+    try {
+      const email = emails.find(e => e.id === emailId)
+      if (!email || email.is_read) return
+
+      // Mettre à jour dans la base de données
+      const { error } = await supabase
+        .from('emails')
+        .update({ is_read: true })
+        .eq('id', emailId)
+
+      if (error) {
+        console.error('Erreur marquer comme lu:', error)
+        return
+      }
+
+      // Mettre à jour l'état local
+      setEmails(prevEmails => 
+        prevEmails.map(e => 
+          e.id === emailId ? { ...e, is_read: true } : e
+        )
+      )
+
+      // Recharger les statistiques
+      loadDashboardData()
+
+      console.log(`✅ Email marqué comme lu`)
+    } catch (error) {
+      console.error('Erreur marquer comme lu:', error)
+    }
+  }
+
   // Obtenir le nom d'affichage du provider
   const getProviderDisplayName = () => {
     const names = {
@@ -741,8 +809,9 @@ export function Dashboard() {
                               key={email.id}
                               email={email}
                               onClick={() => handleEmailClick(email)}
-                              onStarClick={() => console.log('Toggle important:', email.id)}
+                              onStarClick={handleToggleImportant}
                               onMoveCategory={() => console.log('Déplacer email:', email.id)}
+                              onMarkAsRead={handleMarkAsRead}
                             />
                           ))
                         ) : (

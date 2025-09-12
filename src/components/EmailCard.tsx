@@ -8,11 +8,12 @@ import { cn } from '../lib/utils'
 interface EmailCardProps {
   email: Email
   onClick?: () => void
-  onStarClick?: () => void
+  onStarClick?: (emailId: string) => void
   onMoveCategory?: () => void
+  onMarkAsRead?: (emailId: string) => void
 }
 
-export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: EmailCardProps) {
+export function EmailCard({ email, onClick, onStarClick, onMoveCategory, onMarkAsRead }: EmailCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -38,30 +39,33 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
     >
       <Card 
         className={cn(
-          "transition-all duration-200",
+          "transition-all duration-200 overflow-hidden", // Ajout overflow-hidden pour responsive
           "cursor-pointer hover:shadow-lg",
-          !email.is_read && "border-l-4 border-l-primary bg-blue-50/30",
-          email.is_read && "bg-gray-50/50",
+          !email.is_read && "border-l-4 border-l-blue-500 bg-blue-50/30",
+          email.is_read && "border-l-4 border-l-gray-300 bg-gray-50/50",
           email.is_important && "ring-2 ring-yellow-200"
         )}
         onClick={() => {
-          // Ouvrir directement le modal sans afficher le contenu dans la carte
+          // Marquer comme lu quand on clique
+          if (!email.is_read && onMarkAsRead) {
+            onMarkAsRead(email.id);
+          }
           if (onClick) onClick();
         }}
       >
         <CardContent className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2"> {/* Ajout gap pour espacement */}
+            <div className="flex-1 min-w-0 overflow-hidden"> {/* Ajout overflow-hidden */}
               {/* En-tête avec expéditeur et date */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <div className="flex items-center space-x-2 min-w-0 flex-1"> {/* Ajout min-w-0 flex-1 */}
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm font-medium text-foreground truncate">
                     {email.sender_name}
                   </span>
                   {email.category && (
                     <span 
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                      className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0"
                       style={{ 
                         backgroundColor: `${email.category.color}20`,
                         color: email.category.color 
@@ -71,7 +75,7 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
                     </span>
                   )}
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-shrink-0"> {/* Ajout flex-shrink-0 */}
                   <div className="flex items-center text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3 mr-1" />
                     {formatDate(email.received_at)}
@@ -79,16 +83,16 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 hover:bg-yellow-100"
                     onClick={(e) => {
                       e.stopPropagation()
-                      onStarClick?.()
+                      if (onStarClick) onStarClick(email.id)
                     }}
                   >
                     <Star 
                       className={cn(
-                        "h-3 w-3",
-                        email.is_important ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                        "h-3 w-3 transition-colors",
+                        email.is_important ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"
                       )} 
                     />
                   </Button>
@@ -108,14 +112,14 @@ export function EmailCard({ email, onClick, onStarClick, onMoveCategory }: Email
 
               {/* Sujet */}
               <h3 className={cn(
-                "text-sm mb-2 line-clamp-1",
+                "text-sm mb-2 line-clamp-1 break-words", // Ajout break-words
                 !email.is_read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
               )}>
                 {email.subject || "(Aucun sujet)"}
               </h3>
 
               {/* Aperçu du contenu */}
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-2 break-words"> {/* Ajout break-words */}
                 {email.snippet || email.body_text?.substring(0, 120) + "..."}
               </p>
 
