@@ -260,14 +260,14 @@ export function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative py-16 lg:py-24">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <section className="relative py-12 sm:py-16 lg:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-5xl mx-auto">
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="text-6xl lg:text-8xl font-bold mb-6 leading-tight"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold mb-8 leading-tight"
             >
               <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 L'avenir de la
@@ -277,27 +277,17 @@ export function LandingPage() {
                 gestion d'emails
               </span>
             </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-              className="text-2xl lg:text-3xl text-gray-600 mb-8 leading-relaxed max-w-4xl mx-auto font-light"
-            >
-              Découvrez une nouvelle façon de gérer vos emails avec notre IA révolutionnaire. 
-              <span className="text-blue-600 font-medium"> Organisez, classifiez et optimisez </span>
-              votre productivité comme jamais auparavant.
-            </motion.p>
 
+            {/* Bouton CTA principal - déplacé ici */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12"
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12"
             >
               <motion.button
                 onClick={handleGoogleAuth}
-                className="relative px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-3xl font-bold text-xl shadow-2xl shadow-blue-500/25 hover:shadow-3xl hover:shadow-blue-500/30 transition-all duration-300 group overflow-hidden"
+                className="relative px-8 py-4 sm:px-10 sm:py-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-3xl font-bold text-lg sm:text-xl shadow-2xl shadow-blue-500/25 hover:shadow-3xl hover:shadow-blue-500/30 transition-all duration-300 group overflow-hidden w-full sm:w-auto"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -305,7 +295,7 @@ export function LandingPage() {
                   className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   initial={false}
                 />
-                <span className="relative flex items-center space-x-3">
+                <span className="relative flex items-center justify-center space-x-3">
                   <span>Essayer gratuitement</span>
                   <motion.div
                     animate={{ x: [0, 5, 0] }}
@@ -318,21 +308,50 @@ export function LandingPage() {
               
               <button 
                 onClick={() => navigate('/features')}
-                className="text-gray-700 hover:text-gray-900 transition-colors font-bold text-xl flex items-center space-x-2 group"
+                className="text-gray-700 hover:text-gray-900 transition-colors font-bold text-lg sm:text-xl flex items-center space-x-2 group"
               >
                 <span>Découvrir les fonctionnalités</span>
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
             </motion.div>
+            
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-600 mb-8 leading-relaxed max-w-4xl mx-auto font-light px-4"
+            >
+              <span className="text-blue-600 font-bold">Classez • Organisez • Catégorisez</span>
+              <br />
+              <span className="text-purple-600 font-bold">Répondez rapidement</span> avec l'IA
+            </motion.p>
 
-            {/* Message de compatibilité sans les carrés */}
+            {/* Message de valeur ajoutée */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="mb-12"
+            >
+              <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 rounded-2xl p-6 max-w-3xl mx-auto mx-4">
+                <p className="text-base sm:text-lg text-gray-700 leading-relaxed text-center">
+                  🚀 <span className="font-semibold text-blue-600">IA ultra-rapide</span> • 
+                  📧 <span className="font-semibold text-purple-600">Tri automatique</span> • 
+                  ⚡ <span className="font-semibold text-green-600">Réponses instantanées</span>
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Message de compatibilité */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
               className="mb-16"
             >
-              <p className="text-gray-600 mb-8 text-lg">Compatible avec tous vos fournisseurs d'emails préférés</p>
+              <p className="text-gray-600 mb-8 text-base sm:text-lg">
+                <span className="text-green-600 font-semibold">✅ Compatible</span> avec Gmail, Outlook, Yahoo et tous vos fournisseurs préférés
+              </p>
             </motion.div>
 
 
@@ -341,16 +360,16 @@ export function LandingPage() {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto"
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 max-w-4xl mx-auto px-4"
             >
               {stats.map((stat, index) => (
                 <div key={index} className="text-center">
-                  <div className="flex justify-center mb-3 text-blue-600">
+                  <div className="flex justify-center mb-2 sm:mb-3 text-blue-600">
                     {stat.icon}
                   </div>
-                  <div className="text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
-                  <div className="text-gray-600 font-medium">{stat.label}</div>
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">{stat.number}</div>
+                  <div className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">{stat.label}</div>
                 </div>
               ))}
             </motion.div>
