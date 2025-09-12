@@ -35,7 +35,7 @@ class EmailSyncService {
     console.log(`[${progress.stage}] ${progress.message} (${Math.round(progress.progress)}%)`);
   }
 
-  async synchronizeEmails(maxEmails: number = 50, forceFullSync: boolean = false): Promise<SyncResult> {
+  async synchronizeEmails(maxEmails: number = 100, forceFullSync: boolean = false): Promise<SyncResult> {
     // Protection contre les synchronisations simultanées
     if (this.isSyncing) {
       console.log('🚫 Synchronisation déjà en cours, abandon...');
@@ -461,7 +461,7 @@ class EmailSyncService {
     }
   }
 
-  async getUserEmails(userId: string, categoryId?: string | null, limit: number = 50): Promise<ProcessedEmail[]> {
+  async getUserEmails(userId: string, categoryId?: string | null, limit: number = 100): Promise<ProcessedEmail[]> {
     console.log(`📨 getUserEmails appelé avec: userId=${userId}, categoryId=${categoryId}, limit=${limit}`)
     
     let query = supabase
@@ -499,6 +499,30 @@ class EmailSyncService {
 
     console.log(`✅ getUserEmails résultat: ${emails?.length || 0} emails trouvés`)
     return emails || [];
+  }
+
+  /**
+   * Marque un email comme lu dans la base de données
+   */
+  async markEmailAsRead(emailId: string): Promise<void> {
+    try {
+      console.log(`🔄 Marquage de l'email ${emailId} comme lu...`);
+      
+      const { error } = await supabase
+        .from('emails')
+        .update({ is_read: true })
+        .eq('id', emailId);
+
+      if (error) {
+        console.error('❌ Erreur lors du marquage comme lu:', error);
+        throw new Error(`Impossible de marquer l'email comme lu: ${error.message}`);
+      }
+
+      console.log(`✅ Email ${emailId} marqué comme lu avec succès`);
+    } catch (error) {
+      console.error('❌ Erreur markEmailAsRead:', error);
+      throw error;
+    }
   }
 }
 

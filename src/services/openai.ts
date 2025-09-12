@@ -84,14 +84,22 @@ class OpenAIService {
 
   constructor() {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Clé API OpenAI manquante dans les variables d\'environnement');
+    if (!apiKey || apiKey.length < 50) {
+      console.warn('⚠️ Clé API OpenAI manquante ou incorrecte - Assistant désactivé temporairement');
+      // Créer un client factice pour éviter les erreurs
+      this.openai = null as any;
+      return;
     }
     
-    this.openai = new OpenAI({
-      apiKey: apiKey,
-      dangerouslyAllowBrowser: true // Pour utilisation côté client
-    });
+    try {
+      this.openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true // Pour utilisation côté client
+      });
+    } catch (error) {
+      console.warn('⚠️ Erreur initialisation OpenAI:', error);
+      this.openai = null as any;
+    }
   }
 
   /**
@@ -99,6 +107,12 @@ class OpenAIService {
    */
   async classifyEmail(email: ProcessedEmail, existingCategories: Category[]): Promise<ClassificationResult> {
     try {
+      // Vérifier si OpenAI est disponible
+      if (!this.openai) {
+        console.warn('⚠️ OpenAI non disponible - utilisation du fallback');
+        return this.getFallbackCategory(existingCategories);
+      }
+
       console.log(`🤖 Classification OpenAI de l'email: "${email.subject}"`);
 
       const existingCategoryNames = existingCategories.map(cat => cat.name);
@@ -562,6 +576,14 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
     conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
   ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
     try {
+      // Vérifier si OpenAI est disponible
+      if (!this.openai) {
+        return {
+          content: '🔐 Assistant temporairement indisponible (problème de configuration OpenAI). Réessayez plus tard !',
+          type: 'error'
+        };
+      }
+
       // Récupération des données utilisateur
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {

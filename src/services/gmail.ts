@@ -81,7 +81,7 @@ class GmailService {
     return response.json();
   }
 
-  async fetchRecentEmails(maxResults: number = 50): Promise<ProcessedEmail[]> {
+  async fetchRecentEmails(maxResults: number = 100): Promise<ProcessedEmail[]> {
     try {
       console.log(`Récupération des ${maxResults} emails les plus récents...`);
       

@@ -101,15 +101,8 @@ class AdvancedClassificationService {
   private classifier: any = null;
   private categoryVectors: Map<string, number[]> = new Map();
   
-  // Patterns améliorés avec des poids pour la précision
+  // Patterns améliorés pour les 8 catégories UNIQUEMENT avec une meilleure séparation
   private readonly categoryPatterns: Record<string, CategoryPattern> = {
-    'Factures': {
-      keywords: ['facture', 'invoice', 'bill', 'payment', 'paiement', 'montant', 'payé', 'payer', 'échéance', 'edf', 'gdf', 'orange', 'sfr', 'free', 'bouygues', 'électricité', 'gaz', 'internet', 'mobile', 'téléphone', 'abonnement', 'forfait', 'renouvellement'],
-      senderPatterns: ['noreply', 'facturation', 'billing', 'no-reply', 'service.client', 'edf', 'engie', 'orange', 'sfr', 'bouygues', 'free', 'clients'],
-      color: '#ef4444',
-      icon: '📄',
-      weight: 1.0
-    },
     'Banque': {
       keywords: ['banque', 'bank', 'compte', 'virement', 'carte', 'crédit', 'débit', 'solde', 'relevé', 'iban', 'transaction', 'prélèvement', 'versement', 'cotisation', 'découvert', 'épargne', 'livret', 'assurance', 'crédit', 'emprunt'],
       senderPatterns: ['banque', 'bank', 'credit', 'agricole', 'bnp', 'societe', 'generale', 'lcl', 'cic', 'caisse', 'epargne', 'bred', 'banquepopulaire', 'hsbc', 'ing'],
@@ -117,82 +110,54 @@ class AdvancedClassificationService {
       icon: '🏦',
       weight: 1.0
     },
+    'Personnel': {
+      keywords: ['famille', 'ami', 'personnel', 'privé', 'invitation', 'anniversaire', 'mariage', 'vacances', 'weekend', 'soirée', 'rendez-vous', 'merci', 'salut', 'bisous', 'bises', 'cordialement', 'amicalement', 'cher', 'chère', 'bonjour', 'bonsoir', 'comment vas-tu', 'j\'espère que tu vas bien', 'des nouvelles', 'prendre contact'],
+      senderPatterns: ['gmail.com', 'yahoo.fr', 'hotmail.com', 'outlook.com', 'free.fr', 'orange.fr', 'wanadoo.fr', 'laposte.net'],
+      color: '#8b5cf6',
+      icon: '👤',
+      weight: 1.3
+    },
     'Travail': {
-      keywords: ['réunion', 'meeting', 'projet', 'équipe', 'deadline', 'rapport', 'présentation', 'tâche', 'mission', 'client', 'collègue', 'manager', 'rh', 'recrutement', 'embauche', 'candidature', 'entretien', 'salaire', 'contrat', 'bureau'],
+      keywords: ['réunion', 'meeting', 'projet', 'équipe', 'deadline', 'rapport', 'présentation', 'tâche', 'mission', 'client', 'collègue', 'manager', 'rh', 'contrat', 'bureau', 'société', 'entreprise', 'travail'],
       senderPatterns: ['hr', 'rh', 'manager', 'chef', 'direction', 'entreprise', 'societe', 'inc', 'ltd', 'corp', 'company', 'group', 'team'],
       color: '#f59e0b',
       icon: '💼',
       weight: 1.0
     },
-    'E-commerce': {
-      keywords: ['commande', 'livraison', 'expédition', 'amazon', 'achat', 'produit', 'article', 'promotion', 'soldes', 'reduction', 'colis', 'suivi', 'retour', 'remboursement', 'panier', 'checkout', 'stock'],
-      senderPatterns: ['amazon', 'ebay', 'zalando', 'fnac', 'cdiscount', 'shop', 'store', 'boutique', 'marketplace', 'vente', 'alibaba', 'aliexpress'],
-      color: '#8b5cf6',
-      icon: '🛍️',
+    'Factures': {
+      keywords: ['facture', 'invoice', 'bill', 'payment', 'paiement', 'montant', 'payé', 'payer', 'échéance', 'edf', 'gdf', 'orange', 'sfr', 'free', 'bouygues', 'électricité', 'gaz', 'internet', 'mobile', 'téléphone', 'abonnement', 'forfait', 'renouvellement'],
+      senderPatterns: ['noreply', 'facturation', 'billing', 'no-reply', 'service.client', 'edf', 'engie', 'orange', 'sfr', 'bouygues', 'free', 'clients'],
+      color: '#ef4444',
+      icon: '�',
       weight: 1.0
     },
-    'Voyages': {
-      keywords: ['vol', 'avion', 'train', 'hôtel', 'réservation', 'booking', 'voyage', 'vacation', 'billet', 'ticket', 'sncf', 'air', 'vacances', 'séjour', 'transport', 'destination', 'itinéraire', 'check-in'],
+    'Billets': {
+      keywords: ['vol', 'avion', 'train', 'hôtel', 'réservation', 'booking', 'voyage', 'vacation', 'billet', 'ticket', 'sncf', 'air', 'vacances', 'séjour', 'transport', 'destination', 'itinéraire', 'check-in', 'embarquement', 'confirmation'],
       senderPatterns: ['booking', 'airbnb', 'hotels', 'sncf', 'air', 'ryanair', 'easyjet', 'voyage', 'travel', 'trip', 'expedia', 'skyscanner'],
-      color: '#3b82f6',
-      icon: '✈️',
-      weight: 1.0
-    },
-    'Newsletter': {
-      keywords: ['newsletter', 'abonnement', 'unsubscribe', 'désabonner', 'actualités', 'news', 'hebdomadaire', 'mensuel', 'information', 'bulletin', 'digest', 'update'],
-      senderPatterns: ['newsletter', 'news', 'noreply', 'info', 'marketing', 'communication', 'media', 'magazine', 'journal'],
-      color: '#6b7280',
-      icon: '📰',
-      weight: 0.8
-    },
-    'Sécurité': {
-      keywords: ['sécurité', 'security', 'mot de passe', 'password', 'connexion', 'login', 'compte', 'verification', 'code', 'authentification', 'suspicious', 'alerte', 'piratage', 'phishing'],
-      senderPatterns: ['security', 'noreply', 'no-reply', 'admin', 'support', 'alert', 'notification'],
-      color: '#dc2626',
-      icon: '🔒',
-      weight: 1.2
-    },
-    'Formation': {
-      keywords: ['formation', 'cours', 'université', 'école', 'éducation', 'apprentissage', 'certification', 'diplôme', 'étudiant', 'enseignement', 'mooc', 'webinar', 'tutorial'],
-      senderPatterns: ['univ', 'education', 'school', 'formation', 'learning', 'academy', 'coursera', 'udemy'],
       color: '#06b6d4',
-      icon: '🎓',
-      weight: 1.0
-    },
-    'Santé': {
-      keywords: ['médecin', 'docteur', 'hôpital', 'clinique', 'rendez-vous', 'consultation', 'ordonnance', 'pharmacie', 'mutuelle', 'sécurité sociale', 'médicament', 'traitement'],
-      senderPatterns: ['medical', 'sante', 'hopital', 'clinique', 'mutuelle', 'secu', 'ameli', 'pharmacie'],
-      color: '#84cc16',
-      icon: '🏥',
-      weight: 1.0
-    },
-    'Immobilier': {
-      keywords: ['appartement', 'maison', 'location', 'achat', 'vente', 'loyer', 'agence', 'immobilier', 'bail', 'propriétaire', 'logement', 'studio', 'villa'],
-      senderPatterns: ['immobilier', 'agence', 'location', 'leboncoin', 'seloger', 'pap', 'orpi', 'century21'],
-      color: '#f97316',
-      icon: '🏠',
-      weight: 1.0
-    },
-    'Réseaux sociaux': {
-      keywords: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'notification', 'mention', 'like', 'commentaire', 'message', 'ami', 'connexion', 'réseau social', 'post', 'photo', 'vidéo', 'story'],
-      senderPatterns: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'social', 'notification', 'noreply'],
-      color: '#8b5cf6',
-      icon: '📱',
+      icon: '🎫',
       weight: 1.0
     },
     'Promotions': {
       keywords: ['promo', 'promotion', 'offre', 'reduction', 'soldes', 'discount', 'code promo', 'bon plan', 'deal', 'cashback', 'remise', 'special', 'limited', 'exclusive', 'save', 'économie', 'gratuit', 'free', 'cadeau', 'gift'],
-      senderPatterns: ['promo', 'marketing', 'deals', 'offers', 'sales', 'newsletter', 'noreply', 'no-reply'],
-      color: '#f59e0b',
-      icon: '🏷️',
+      senderPatterns: ['promo', 'marketing', 'deals', 'offers', 'sales', 'newsletter'],
+      color: '#f97316',
+      icon: '�️',
       weight: 0.9
     },
-    'Support Client': {
-      keywords: ['support', 'service client', 'aide', 'help', 'assistance', 'problème', 'réclamation', 'ticket', 'incident', 'bug', 'erreur', 'contact', 'customer service', 'helpdesk', 'faq', 'solution', 'résolution'],
-      senderPatterns: ['support', 'help', 'service', 'customer', 'client', 'assistance', 'helpdesk', 'no-reply', 'noreply'],
-      color: '#06b6d4',
-      icon: '🎧',
-      weight: 1.1
+    'Réseaux sociaux': {
+      keywords: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'notification', 'mention', 'like', 'commentaire', 'message', 'ami', 'connexion', 'réseau social', 'post', 'photo', 'vidéo', 'story'],
+      senderPatterns: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'social', 'notification'],
+      color: '#8b5cf6',
+      icon: '📱',
+      weight: 1.0
+    },
+    'Publicité': {
+      keywords: ['publicité', 'pub', 'marketing', 'spam', 'newsletter', 'unsubscribe', 'désabonner', 'indeed', 'pole emploi', 'offre emploi', 'job offer', 'candidature', 'cv', 'embauche', 'recrutement', 'deliveroo', 'uber', 'auto école', 'permis', 'formation'],
+      senderPatterns: ['noreply', 'no-reply', 'marketing', 'newsletter', 'info@', 'contact@', 'team@', 'hello@', 'indeed', 'pole-emploi', 'apec', 'monster', 'leboncoin', 'deliveroo', 'uber', 'autoecole'],
+      color: '#f43f5e',
+      icon: '📢',
+      weight: 1.2
     }
   };
 
@@ -239,14 +204,16 @@ class AdvancedClassificationService {
         }
       }
 
-      // 2. Classification basée sur les patterns avec scoring avancé
+      // 2. Classification basée sur les patterns - SEUIL ABAISSÉ pour 90%+ classification
       const patternResult = await this.classifyWithPatterns(features, email, existingCategories);
-      if (patternResult.confidence > 0.3) {
+      if (patternResult.confidence > 0.1) { // SEUIL ABAISSÉ de 0.3 à 0.1
         return patternResult;
       }
 
-      // 3. Détection automatique de nouvelle catégorie
-      const autoCategory = await this.detectAndCreateCategory(features, existingCategories);
+      // 3. CRÉATION AUTOMATIQUE DÉSACTIVÉE - Utiliser uniquement les 8 catégories de base
+      console.log('🚫 Création automatique désactivée - classification forcée dans les 8 catégories');
+      // const autoCategory = await this.detectAndCreateCategory(features, existingCategories);
+      const autoCategory = null; // FORCER LA DÉSACTIVATION
       if (autoCategory) {
         return {
           category_id: autoCategory.id,
@@ -430,7 +397,8 @@ class AdvancedClassificationService {
     scores.sort((a, b) => b.score - a.score);
     const bestMatch = scores[0];
 
-    if (bestMatch.score > 0.1) {
+    // SEUIL ENCORE PLUS BAS pour forcer 95%+ de classification
+    if (bestMatch.score > 0.02) { // SEUIL TRÈS BAS : 0.1 → 0.02
       console.log(`✅ Email classé dans "${bestMatch.category?.name}" (score: ${bestMatch.score.toFixed(3)})`);
       
       return {
@@ -471,7 +439,57 @@ class AdvancedClassificationService {
   private calculatePatternScore(features: EmailFeatures, pattern: CategoryPattern, email: ProcessedEmail): number {
     let score = 0;
     const text = `${email.subject} ${email.body_text}`.toLowerCase();
+    const sender = email.sender_email.toLowerCase();
     
+    // RÈGLE SPÉCIALE : Distinguer Personnel des Publicités
+    if (pattern === this.categoryPatterns['Personnel']) {
+      // Pénaliser si c'est clairement de la pub
+      const publicityIndicators = [
+        'noreply', 'no-reply', 'marketing', 'promo', 'newsletter', 'unsubscribe',
+        'indeed', 'pole-emploi', 'deliveroo', 'uber', 'autoecole', 'auto-ecole',
+        'offre', 'promotion', 'discount', 'special', 'limited time', 'deal'
+      ];
+      
+      const hasPublicityIndicators = publicityIndicators.some(indicator => 
+        sender.includes(indicator) || text.includes(indicator)
+      );
+      
+      if (hasPublicityIndicators) {
+        console.log(`❌ Email rejeté de "Personnel" - indicateurs publicitaires détectés`);
+        return 0; // ZERO pour Personnel si publicité détectée
+      }
+      
+      // Bonus si c'est vraiment personnel
+      const personalDomains = ['gmail.com', 'yahoo.fr', 'hotmail.com', 'outlook.com', 'free.fr', 'orange.fr'];
+      const isPersonalDomain = personalDomains.some(domain => sender.includes(domain));
+      
+      if (isPersonalDomain) {
+        score += 0.3; // Bonus pour domaine personnel
+      }
+    }
+    
+    // RÈGLE SPÉCIALE : Indeed et offres d'emploi → Publicité
+    if (sender.includes('indeed') || sender.includes('pole-emploi') || sender.includes('apec') || 
+        text.includes('offre d\'emploi') || text.includes('job offer') || text.includes('candidature')) {
+      
+      if (pattern === this.categoryPatterns['Publicité']) {
+        score += 0.5; // Bonus pour Publicité
+      } else if (pattern === this.categoryPatterns['Travail']) {
+        return 0; // ZERO pour Travail si c'est Indeed/offres emploi
+      }
+    }
+    
+    // RÈGLE SPÉCIALE : Deliveroo, auto-école → Publicité
+    if (sender.includes('deliveroo') || sender.includes('uber') || sender.includes('autoecole') ||
+        text.includes('auto-école') || text.includes('permis de conduire') || text.includes('livraison')) {
+      
+      if (pattern === this.categoryPatterns['Publicité']) {
+        score += 0.4; // Bonus pour Publicité
+      } else if (pattern === this.categoryPatterns['Personnel']) {
+        return 0; // ZERO pour Personnel
+      }
+    }
+
     // 1. Score basé sur les mots-clés avec pondération avancée
     let keywordScore = 0;
     const totalKeywords = pattern.keywords.length;
@@ -727,20 +745,52 @@ class AdvancedClassificationService {
   }
 
   private async fallbackToUnclassified(existingCategories: Category[]): Promise<ClassificationResult> {
-    const unclassifiedCategory = existingCategories.find(cat => cat.name === 'Non classés') || {
-      id: 'fallback_unclassified',
-      name: 'Non classés',
-      color: '#9ca3af',
-      icon: '❓',
+    // ⚠️ PLUS DE "NON CLASSÉS" ! Classification forcée dans les 8 catégories de base
+    console.log('🎯 Classification forcée - aucun email ne reste non classé');
+    
+    // Ordre de priorité pour la classification forcée (du plus général au plus spécifique)
+    const priorityOrder = ['Personnel', 'Publicité', 'Promotions', 'Travail', 'Banque', 'Factures', 'Billets', 'Réseaux sociaux'];
+    
+    // Chercher la première catégorie de base disponible
+    for (const categoryName of priorityOrder) {
+      const category = existingCategories.find(cat => cat.name === categoryName);
+      if (category) {
+        console.log(`✅ Email forcé dans "${categoryName}" (classification par défaut)`);
+        return {
+          category_id: category.id,
+          confidence: 0.25, // Confiance raisonnable pour le forçage
+          suggested_categories: [category]
+        };
+      }
+    }
+    
+    // Si aucune catégorie de base, utiliser la première disponible
+    if (existingCategories.length > 0) {
+      const fallbackCategory = existingCategories[0];
+      console.log(`✅ Email forcé dans "${fallbackCategory.name}" (première catégorie)`);
+      return {
+        category_id: fallbackCategory.id,
+        confidence: 0.2,
+        suggested_categories: [fallbackCategory]
+      };
+    }
+    
+    // Cas extrême - créer une catégorie Personnel par défaut
+    console.log('⚠️ Aucune catégorie trouvée, création Personnel par défaut');
+    const defaultCategory = {
+      id: 'fallback_personnel',
+      name: 'Personnel',
+      color: '#8b5cf6',
+      icon: '👤',
       user_id: '',
       created_at: new Date().toISOString(),
       is_auto_generated: true
     } as Category;
     
     return {
-      category_id: unclassifiedCategory.id,
-      confidence: 0.1,
-      suggested_categories: [unclassifiedCategory]
+      category_id: defaultCategory.id,
+      confidence: 0.2,
+      suggested_categories: [defaultCategory]
     };
   }
 
