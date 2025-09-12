@@ -10,7 +10,7 @@ export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly',
+        scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose',
         redirectTo: `${window.location.origin}/auth/callback`
       }
     });

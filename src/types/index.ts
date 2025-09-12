@@ -38,6 +38,27 @@ export interface Email {
   }
 }
 
+export interface SentEmail {
+  id: string
+  user_id: string
+  to_email: string
+  to_name?: string
+  subject: string
+  body_html?: string
+  body_text?: string
+  reply_to_email_id?: string
+  original_thread_id?: string
+  original_message_id?: string
+  sent_at: string
+  gmail_message_id?: string
+  status: 'draft' | 'sent' | 'failed'
+  attachments?: Array<{ name: string; size: number; type: string }>
+  ai_assisted?: boolean
+  ai_improvements?: string
+  created_at: string
+  updated_at: string
+}
+
 export type EmailProvider = 'gmail' | 'outlook' | 'yahoo';
 
 export interface Category {

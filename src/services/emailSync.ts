@@ -35,7 +35,7 @@ class EmailSyncService {
     console.log(`[${progress.stage}] ${progress.message} (${Math.round(progress.progress)}%)`);
   }
 
-  async synchronizeEmails(maxEmails: number = 100, forceFullSync: boolean = false): Promise<SyncResult> {
+  async synchronizeEmails(maxEmails: number = 50): Promise<SyncResult> {
     // Protection contre les synchronisations simultanées
     if (this.isSyncing) {
       console.log('🚫 Synchronisation déjà en cours, abandon...');
@@ -54,7 +54,7 @@ class EmailSyncService {
     };
 
     try {
-      // 1. Vérifier l'authentification
+      // Vérifier l'authentification
       this.updateProgress({
         stage: 'connecting',
         progress: 5,
@@ -66,27 +66,69 @@ class EmailSyncService {
         throw new Error('Utilisateur non connecté');
       }
 
+      // Détecter si c'est la première synchronisation
+      const { count: existingEmailsCount } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      const isFirstSync = existingEmailsCount === 0;
+      console.log(isFirstSync ? '🆕 Première synchronisation détectée' : `🔄 Synchronisation incrémentale (${existingEmailsCount} emails existants)`);
+
       // Test de connexion Gmail
       const isConnected = await gmailService.testConnection();
       if (!isConnected) {
         throw new Error('Impossible de se connecter à Gmail. Veuillez vous reconnecter.');
       }
 
-      // 2. Récupérer les emails récents
-      this.updateProgress({
-        stage: 'fetching',
-        progress: 15,
-        message: `Récupération des ${maxEmails} emails les plus récents...`
-      });
+      let emails: ProcessedEmail[] = [];
 
-      const emails = await gmailService.fetchRecentEmails(maxEmails);
+      if (isFirstSync) {
+        // PREMIÈRE SYNCHRONISATION : Récupérer les X derniers emails
+        this.updateProgress({
+          stage: 'fetching',
+          progress: 15,
+          message: `Première synchronisation : récupération des ${maxEmails} emails les plus récents...`
+        });
+
+        emails = await gmailService.fetchRecentEmails(maxEmails);
+        console.log(`📨 Première sync: ${emails.length} emails récupérés`);
+        
+      } else {
+        // SYNCHRONISATION INCRÉMENTALE : Récupérer seulement les nouveaux
+        this.updateProgress({
+          stage: 'fetching',
+          progress: 15,
+          message: 'Recherche des nouveaux emails...'
+        });
+
+        // Récupérer la date du dernier email synchronisé
+        const { data: lastEmail } = await supabase
+          .from('emails')
+          .select('received_at')
+          .eq('user_id', user.id)
+          .order('received_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (lastEmail) {
+          console.log(`📅 Dernier email synchronisé le: ${lastEmail.received_at}`);
+          emails = await gmailService.fetchNewEmailsSince(lastEmail.received_at, 50);
+          console.log(`📨 Sync incrémentale: ${emails.length} nouveaux emails trouvés`);
+        } else {
+          // Cas de sécurité : pas de dernier email trouvé
+          console.log('⚠️ Aucun dernier email trouvé, récupération récente');
+          emails = await gmailService.fetchRecentEmails(maxEmails);
+        }
+      }
+
       result.processed_emails = emails.length;
 
       // Afficher les emails récupérés
       this.updateProgress({
         stage: 'fetching',
         progress: 20,
-        message: `${emails.length} emails récupérés avec succès`,
+        message: `${emails.length} emails récupérés avec succès${isFirstSync ? ' (première synchronisation)' : ''}`,
         emails_processed: 0,
         total_emails: emails.length
       });
@@ -102,23 +144,27 @@ class EmailSyncService {
         return result;
       }
 
-      // 3. Filtrer les emails déjà existants (sauf si forceFullSync est true)
+      // 3. Filtrer les doublons (seulement si nécessaire)
       this.updateProgress({
         stage: 'fetching',
         progress: 25,
-        message: 'Vérification des emails existants...'
+        message: 'Vérification des doublons...'
       });
 
-      const newEmails = forceFullSync 
-        ? emails 
-        : await this.filterNewEmails(emails, user.id);
+      const newEmails = isFirstSync 
+        ? emails // Première sync : tous les emails sont nouveaux
+        : await this.filterNewEmails(emails, user.id); // Sync incrémentale : filtrer les doublons par sécurité
+      
       result.new_emails = newEmails.length;
 
-      // Informer sur les emails filtrés
+      // Message informatif
       const existingCount = emails.length - newEmails.length;
-      const statusMessage = forceFullSync 
-        ? `${newEmails.length} emails à traiter (synchronisation complète forcée)`
-        : `${newEmails.length} nouveaux emails à traiter${existingCount > 0 ? ` (${existingCount} déjà existants)` : ''}`;
+      let statusMessage = '';
+      if (isFirstSync) {
+        statusMessage = `${newEmails.length} emails à traiter (première synchronisation)`;
+      } else {
+        statusMessage = `${newEmails.length} nouveaux emails à traiter${existingCount > 0 ? ` (${existingCount} doublons filtrés)` : ''}`;
+      }
       
       this.updateProgress({
         stage: 'fetching',
@@ -176,8 +222,6 @@ class EmailSyncService {
           
           // Si c'est une catégorie auto-générée, la créer si nécessaire
           if (categoryId.startsWith('auto_')) {
-            const categoryName = categoryId.replace('auto_', '').replace(/_/g, ' ');
-            
             // Récupérer les informations de la catégorie suggérée
             const suggestedCategory = classification.suggested_categories?.[0];
             

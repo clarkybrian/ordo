@@ -47,6 +47,7 @@ async function configureGoogleAuth() {
     console.log('4. Ajoutez ces informations:');
     console.log(`   - Client ID: ${googleClientId}`);
     console.log('   - Client Secret: [Votre Secret Google]');
+    console.log('   - Scopes: email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose');
     console.log('   - Authorized Redirect URL: https://tidslxypgfettpguqwxn.supabase.co/auth/v1/callback');
     console.log('5. Sauvegardez les changements');
     

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, FolderOpen, Mail, RefreshCw, User } from 'lucide-react'
+import { Search, FolderOpen, Mail, RefreshCw, User, Edit3 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
 import { EmailModal } from '../components/EmailModal'
 import { SyncProgressBar } from '../components/SyncProgressBar'
+import EmailCompose from '../components/EmailCompose'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
 import { supabase } from '../lib/supabase'
@@ -135,6 +136,7 @@ export function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [showComposeModal, setShowComposeModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -247,9 +249,9 @@ export function Dashboard() {
         // Charger les statistiques globales
         await loadGlobalStats(currentUserData.id)
 
-        // Charger les emails pour la catégorie sélectionnée
+        // Charger les emails pour la catégorie sélectionnée 
         console.log(`📧 Chargement des emails pour la catégorie: ${selectedCategory || 'toutes'}`)
-        const userEmails = await emailSyncService.getUserEmails(currentUserData.id, selectedCategory, 50)
+        const userEmails = await emailSyncService.getUserEmails(currentUserData.id, selectedCategory, 1000) // Limite élevée pour voir TOUS les emails stockés
         console.log(`📊 Emails chargés: ${userEmails.length} emails pour catégorie "${selectedCategory}"`)
         setEmails(userEmails as unknown as Email[])
       } else {
@@ -379,7 +381,8 @@ export function Dashboard() {
         message: 'Connexion à Gmail...'
       })
 
-      await emailSyncService.synchronizeEmails(50, true) // true = forcer récupération complète
+      // Synchronisation intelligente : 50 emails au début, puis incrémentale
+      await emailSyncService.synchronizeEmails(50) // Synchronisation intelligente automatique
 
     } catch (error) {
       console.error('Erreur de synchronisation:', error)
@@ -599,16 +602,26 @@ export function Dashboard() {
                 {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
               </div>
               
-              {/* Ligne 2: Barre de recherche compacte */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
-                />
+              {/* Ligne 2: Barre de recherche compacte + Bouton composer */}
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
+                  />
+                </div>
+                <Button
+                  onClick={() => setShowComposeModal(true)}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs"
+                >
+                  <Edit3 className="h-3 w-3 mr-1" />
+                  Écrire
+                </Button>
               </div>
             </div>
           ) : (
@@ -632,6 +645,16 @@ export function Dashboard() {
               </div>
               
               <div className="flex items-center space-x-3">
+                {/* Bouton Composer */}
+                <Button
+                  onClick={() => setShowComposeModal(true)}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Composer
+                </Button>
+                
                 {/* Barre de recherche intégrée */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -931,6 +954,12 @@ export function Dashboard() {
           setSelectedEmail(null);
           setIsEmailModalOpen(false);
         }}
+      />
+
+      {/* Modal de composition d'email */}
+      <EmailCompose 
+        isOpen={showComposeModal}
+        onClose={() => setShowComposeModal(false)}
       />
     </div>
   )

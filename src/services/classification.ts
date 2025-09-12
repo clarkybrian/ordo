@@ -391,10 +391,31 @@ class AdvancedClassificationService {
     if (bestMatch.score > 0.02) { // SEUIL TRÈS BAS : 0.1 → 0.02
       console.log(`✅ Email classé dans "${bestMatch.category?.name}" (score: ${bestMatch.score.toFixed(3)})`);
       
+      let categoryId = bestMatch.category?.id || '';
+      
+      // Si c'est un pattern, trouver la vraie catégorie correspondante
+      if (categoryId.startsWith('pattern_') && bestMatch.category) {
+        const patternName = bestMatch.category.name;
+        const realCategory = categories.find(cat => 
+          cat.name.toLowerCase() === patternName.toLowerCase()
+        );
+        
+        if (realCategory) {
+          categoryId = realCategory.id;
+          console.log(`🔄 Pattern "${patternName}" mappé à la catégorie existante (${realCategory.id})`);
+        } else {
+          // Si pas de catégorie correspondante, laisser vide pour créer automatiquement
+          categoryId = `auto_${patternName.toLowerCase().replace(/\s+/g, '_')}`;
+          console.log(`🆕 Pattern "${patternName}" nécessite création de catégorie`);
+        }
+      }
+      
       return {
-        category_id: bestMatch.category?.id || '',
+        category_id: categoryId,
         confidence: bestMatch.score,
-        suggested_categories: scores.slice(0, 3).map(s => s.category).filter(Boolean) as Category[]
+        suggested_categories: bestMatch.isPattern && !categories.find(cat => cat.name.toLowerCase() === bestMatch.category?.name.toLowerCase()) ? 
+          [{ ...bestMatch.category, id: `auto_${bestMatch.category.name.toLowerCase().replace(/\s+/g, '_')}` } as Category] : 
+          scores.slice(0, 3).map(s => s.category).filter(Boolean) as Category[]
       };
     }
 

@@ -11,6 +11,7 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { CategoriesPage } from './pages/CategoriesPage'
+import SentEmailsPage from './pages/SentEmailsPage'
 import type { User } from '@supabase/supabase-js'
 
 // Pages temporaires pour la démo
@@ -243,6 +244,7 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="sent-emails" element={<SentEmailsPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="subscription" element={<SubscriptionPage />} />
               <Route path="settings" element={<SettingsPage />} />

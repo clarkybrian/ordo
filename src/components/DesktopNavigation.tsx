@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Mail, FolderOpen, Settings, CreditCard } from 'lucide-react';
+import { Mail, FolderOpen, Settings, CreditCard, Send } from 'lucide-react';
 
 interface DesktopNavigationProps {
   className?: string;
@@ -14,6 +14,7 @@ export const DesktopNavigation: FC<DesktopNavigationProps> = ({ className = '' }
   
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Mail },
+    { name: 'Envoyés', href: '/sent-emails', icon: Send },
     { name: 'Catégories', href: '/categories', icon: FolderOpen },
     { name: 'Abonnement', href: '/subscription', icon: CreditCard },
     { name: 'Paramètres', href: '/settings', icon: Settings },

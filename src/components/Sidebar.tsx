@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
-import { Settings, X, CreditCard, FolderOpen } from 'lucide-react'
+import { Settings, X, CreditCard, FolderOpen, Send } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { emailSyncService } from '../services/emailSync'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion'
@@ -34,6 +34,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
   const [categories, setCategories] = useState<SidebarCategory[]>([]);
+  const [emailStats, setEmailStats] = useState({ unread: 0, important: 0, sent: 0 });
   const [expandedSection, setExpandedSection] = useState<string | null>('dashboard');
 
   useEffect(() => {
@@ -50,6 +51,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         const categoriesData = await emailSyncService.getUserCategories(user.id);
         setCategories(categoriesData);
         console.log('📁 Catégories chargées dans la sidebar:', categoriesData?.length || 0, categoriesData);
+
+        // Récupérer les statistiques d'emails
+        const [unreadResult, importantResult, sentResult] = await Promise.all([
+          supabase.from('emails').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false),
+          supabase.from('emails').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_important', true),
+          supabase.from('sent_emails').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+        ]);
+
+        setEmailStats({
+          unread: unreadResult.count || 0,
+          important: importantResult.count || 0,
+          sent: sentResult.count || 0
+        });
+        
+        console.log('📊 Stats emails sidebar:', { 
+          unread: unreadResult.count, 
+          important: importantResult.count,
+          sent: sentResult.count 
+        });
+
       } catch (error) {
         console.error('Erreur lors de la récupération des catégories:', error);
       }
@@ -68,8 +89,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
       path: '/dashboard',
       submenu: [
         { name: 'Tous les emails', path: '/dashboard?filter=all', count: categories.reduce((sum, cat) => sum + (cat.emails_count || 0), 0) },
-        { name: 'Non lus', path: '/dashboard?filter=unread', count: 22 }, // On pourrait récupérer le vrai nombre en base
-        { name: 'Importants', path: '/dashboard?filter=important', count: 0 },
+        { name: 'Non lus', path: '/dashboard?filter=unread', count: emailStats.unread },
+        { name: 'Importants', path: '/dashboard?filter=important', count: emailStats.important },
+        // Retirer "Envoyés" d'ici - il aura sa propre section
         // Ajouter les catégories directement ici
         ...categories.map((cat: SidebarCategory) => ({
           name: cat.name,
@@ -79,6 +101,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
           count: cat.emails_count
         }))
       ] as SubmenuItem[]
+    },
+    {
+      id: 'sent',
+      name: 'Envoyés',
+      icon: <Send className="h-5 w-5" />,
+      path: '/sent-emails'
+      // Lien direct vers la page des emails envoyés
     },
     {
       id: 'categories',

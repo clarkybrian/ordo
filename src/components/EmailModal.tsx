@@ -1,6 +1,8 @@
 import { Calendar, User, Paperclip, Star, Reply, Forward, Archive } from 'lucide-react'
 import { Button } from './ui/button'
 import { Modal } from './ui/modal'
+import { useState } from 'react'
+import EmailCompose from './EmailCompose'
 import type { Email, EmailAttachment } from '../types'
 
 interface EmailModalProps {
@@ -10,6 +12,8 @@ interface EmailModalProps {
 }
 
 export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
+  const [showCompose, setShowCompose] = useState(false);
+
   if (!email) return null
 
   const formatDate = (dateString: string) => {
@@ -93,7 +97,12 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
       <div className="p-6">
         {/* Actions rapides */}
         <div className="flex items-center space-x-2 mb-6 pb-4 border-b">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowCompose(true)}
+            className="bg-red-500 text-white border-red-500 hover:bg-red-600"
+          >
             <Reply className="h-4 w-4 mr-2" />
             Répondre
           </Button>
@@ -247,6 +256,13 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
           </div>
         </div>
       </div>
+
+      {/* Modal de composition d'email */}
+      <EmailCompose 
+        isOpen={showCompose}
+        onClose={() => setShowCompose(false)}
+        replyTo={email}
+      />
     </Modal>
   )
 }
