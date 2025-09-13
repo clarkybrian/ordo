@@ -3,6 +3,8 @@ import { Button } from './ui/button'
 import { Modal } from './ui/modal'
 import { useState } from 'react'
 import EmailCompose from './EmailCompose'
+import { UnsubscribeButton } from './UnsubscribeButton'
+import { supabase } from '../lib/supabase'
 import type { Email, EmailAttachment } from '../types'
 
 interface EmailModalProps {
@@ -13,6 +15,18 @@ interface EmailModalProps {
 
 export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
   const [showCompose, setShowCompose] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Récupérer l'utilisateur courant pour le désabonnement
+  useState(() => {
+    const getCurrentUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUser(session.user);
+      }
+    };
+    getCurrentUser();
+  });
 
   if (!email) return null
 
@@ -110,6 +124,15 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
             <Forward className="h-4 w-4 mr-2" />
             Transférer
           </Button>
+          
+          {/* Bouton de désabonnement (Option 1) */}
+          {currentUser && (
+            <UnsubscribeButton 
+              email={email} 
+              userId={currentUser.id} 
+            />
+          )}
+          
           {email.is_important && (
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 ml-auto" />
           )}

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, FolderOpen, Mail, RefreshCw, User, Edit3 } from 'lucide-react'
+import { Search, FolderOpen, Mail, RefreshCw, User, Edit3, UserMinus, ChevronDown } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
 import { EmailModal } from '../components/EmailModal'
 import { SyncProgressBar } from '../components/SyncProgressBar'
+import { unsubscribeService } from '../services/unsubscribe'
 import EmailCompose from '../components/EmailCompose'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
 import { initializeUserDatabase } from '../scripts/initializeDatabase'
@@ -147,8 +148,30 @@ export function Dashboard() {
   // État pour le provider sélectionné
   const [selectedProvider, setSelectedProvider] = useState<EmailProvider>('gmail')
   
+  // État pour le modal de désabonnement massif
+  const [bulkUnsubscribeModal, setBulkUnsubscribeModal] = useState<{
+    isOpen: boolean;
+    categoryId: string;
+    categoryName: string;
+    emailCount: number;
+    isProcessing: boolean;
+    progress: number;
+    currentEmail: string;
+  }>({
+    isOpen: false,
+    categoryId: '',
+    categoryName: '',
+    emailCount: 0,
+    isProcessing: false,
+    progress: 0,
+    currentEmail: ''
+  })
+  
   // Détection de l'état de l'assistant de conversation depuis localStorage ou état global
   const [isAssistantOpen, setIsAssistantOpen] = useState(false)
+  
+  // État pour les filtres mobiles
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
   
   // Écouter les changements d'état de l'assistant
   useEffect(() => {
@@ -343,6 +366,32 @@ export function Dashboard() {
     
     return matchesSearch && matchesCategory
   })
+
+  // Fonction pour ouvrir le modal de désabonnement massif
+  const handleBulkUnsubscribeOpen = (categoryId: string, categoryName: string, emailCount: number) => {
+    setBulkUnsubscribeModal({
+      isOpen: true,
+      categoryId,
+      categoryName,
+      emailCount,
+      isProcessing: false,
+      progress: 0,
+      currentEmail: ''
+    })
+  }
+
+  // Fonction pour fermer le modal de désabonnement massif
+  const handleBulkUnsubscribeClose = () => {
+    setBulkUnsubscribeModal({
+      isOpen: false,
+      categoryId: '',
+      categoryName: '',
+      emailCount: 0,
+      isProcessing: false,
+      progress: 0,
+      currentEmail: ''
+    })
+  }
 
   // Gérer la synchronisation manuelle
   const handleManualSync = async () => {
@@ -602,7 +651,7 @@ export function Dashboard() {
                 {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
               </div>
               
-              {/* Ligne 2: Barre de recherche compacte + Bouton composer */}
+              {/* Ligne 2: Barre de recherche compacte seulement */}
               <div className="flex space-x-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -614,14 +663,6 @@ export function Dashboard() {
                     className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
                   />
                 </div>
-                <Button
-                  onClick={() => setShowComposeModal(true)}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-xs"
-                >
-                  <Edit3 className="h-3 w-3 mr-1" />
-                  Écrire
-                </Button>
               </div>
             </div>
           ) : (
@@ -678,7 +719,151 @@ export function Dashboard() {
       <div className={`mx-auto px-4 pb-6 transition-all duration-300 ${
         isMobile ? 'pt-0' : 'pt-20'
       } ${isAssistantOpen ? 'max-w-none pr-116 pl-20' : 'max-w-6xl'}`}>
+        
+        {/* Mobile Filter Button */}
+        <div className="lg:hidden mb-4">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50"
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span>Filtres et catégories</span>
+            <motion.div
+              animate={{ rotate: showMobileFilters ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </motion.div>
+          </motion.button>
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        
+        {/* Mobile Filters Sidebar */}
+        <AnimatePresence>
+          {showMobileFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="lg:hidden col-span-1 mb-4"
+            >
+              <Card className="max-h-[50vh] overflow-auto">
+                <CardContent className="p-4">
+                  <h2 className="font-semibold text-gray-900 mb-3">Filtres rapides</h2>
+                  
+                  <div className="space-y-1 mb-4">
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setSelectedCategory(null);
+                        setShowMobileFilters(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-lg transition-colors ${
+                        selectedCategory === null 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Tous les emails</span>
+                        <span className="text-sm">{globalStats.totalEmails}</span>
+                      </div>
+                    </motion.button>
+                    
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setSelectedCategory('unread');
+                        setShowMobileFilters(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-lg transition-colors ${
+                        selectedCategory === 'unread'
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Non lus</span>
+                        <span className="text-sm">{globalStats.unreadEmails}</span>
+                      </div>
+                    </motion.button>
+                    
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setSelectedCategory('important');
+                        setShowMobileFilters(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-lg transition-colors ${
+                        selectedCategory === 'important'
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Importants</span>
+                        <span className="text-sm">{globalStats.importantEmails}</span>
+                      </div>
+                    </motion.button>
+                  </div>
+                  
+                  <h2 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Catégories
+                  </h2>
+                  
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {categories
+                      .filter(category => (category.emails_count || 0) > 0)
+                      .map((category) => (
+                      <motion.button
+                        key={category.id}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setSelectedCategory(category.id);
+                          setShowMobileFilters(false);
+                        }}
+                        className={`w-full text-left p-2.5 rounded-lg transition-colors ${
+                          selectedCategory === category.id 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span>{category.icon}</span>
+                            <span className="text-sm">{category.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs">{category.emails_count || 0}</span>
+                            
+                            {currentUser && (category.name === 'Publicité' || category.name === 'Promotions' || category.name === 'Newsletter') && category.emails_count > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleBulkUnsubscribeOpen(category.id, category.name, category.emails_count);
+                                  setShowMobileFilters(false);
+                                }}
+                                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                title={`Désabonnement massif pour ${category.name}`}
+                              >
+                                <UserMinus className="h-3 w-3 text-orange-600" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
           {/* Sidebar - Filtres et catégories */}
           <div className="lg:col-span-2 hidden lg:block">
             <div className="sticky top-28 z-20">
@@ -778,7 +963,23 @@ export function Dashboard() {
                             <span>{category.icon}</span>
                             <span>{category.name}</span>
                           </div>
-                          <span className="text-sm">{category.emails_count || 0}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm">{category.emails_count || 0}</span>
+                            
+                            {/* Bouton de désabonnement compact pour certaines catégories */}
+                            {currentUser && (category.name === 'Publicité' || category.name === 'Promotions' || category.name === 'Newsletter') && category.emails_count > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleBulkUnsubscribeOpen(category.id, category.name, category.emails_count);
+                                }}
+                                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                title={`Désabonnement massif pour ${category.name}`}
+                              >
+                                <UserMinus className="h-3 w-3 text-orange-600" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </motion.button>
                     ))}
@@ -953,6 +1154,134 @@ export function Dashboard() {
         isOpen={showComposeModal}
         onClose={() => setShowComposeModal(false)}
       />
+
+      {/* Bouton flottant Écrire (mobile uniquement) - positionné au-dessus du bouton assistant */}
+      {isMobile && (
+        <motion.div
+          className="fixed bottom-24 right-6 z-[105]"
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 1.2, type: "spring", stiffness: 200 }}
+        >
+          <Button
+            onClick={() => setShowComposeModal(true)}
+            className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg transition-all duration-300 flex items-center justify-center"
+            aria-label="Écrire un email"
+          >
+            <Edit3 className="h-6 w-6" />
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Modal de désabonnement massif */}
+      {bulkUnsubscribeModal.isOpen && currentUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={handleBulkUnsubscribeClose} />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="flex-shrink-0">
+                  <UserMinus className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Désabonnement massif
+                  </h3>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-orange-800">
+                    <strong>⚠️ Attention : Action irréversible</strong>
+                  </p>
+                  <p className="text-sm text-orange-700 mt-1">
+                    Cette action va tenter de vous désabonner automatiquement de toutes les newsletters 
+                    détectées dans la catégorie <strong>"{bulkUnsubscribeModal.categoryName}"</strong>.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 p-3 rounded-lg text-sm mb-3">
+                  <p><strong>Total d'emails :</strong> {bulkUnsubscribeModal.emailCount}</p>
+                  <p><strong>Newsletters estimées :</strong> À déterminer pendant le processus</p>
+                  <p className="mt-2 text-gray-600">
+                    ⏱️ Cette opération peut prendre plusieurs minutes.
+                  </p>
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-lg text-sm mb-4">
+                  <p className="font-medium text-blue-900 mb-1">
+                    🎯 Types de désabonnement typiques :
+                  </p>
+                  <div className="text-blue-800 space-y-1">
+                    <p>• Newsletters commerciales (e-commerce, services)</p>
+                    <p>• Notifications marketing (promotions, offres)</p>
+                    <p>• Bulletins d'information (actualités, blogs)</p>
+                    <p>• Emails promotionnels récurrents</p>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 p-3 rounded-lg mb-4">
+                  <p className="text-sm text-yellow-800">
+                    💡 <strong>Note :</strong> Certains désabonnements peuvent échouer selon la configuration 
+                    du serveur email de l'expéditeur. Vous pourrez voir le détail des résultats à la fin.
+                  </p>
+                </div>
+
+                {bulkUnsubscribeModal.isProcessing && (
+                  <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                    <p className="text-sm text-blue-800 font-medium">
+                      🔄 Désabonnement en cours...
+                    </p>
+                    <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: '50%' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleBulkUnsubscribeClose}
+                    disabled={bulkUnsubscribeModal.isProcessing}
+                  >
+                    {bulkUnsubscribeModal.isProcessing ? 'En cours...' : 'Annuler'}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!currentUser) return;
+                      
+                      setBulkUnsubscribeModal(prev => ({ ...prev, isProcessing: true, progress: 0 }));
+                      
+                      try {
+                        const results = await unsubscribeService.bulkUnsubscribeFromCategory(
+                          bulkUnsubscribeModal.categoryId,
+                          currentUser.id
+                        );
+                        
+                        console.log('Résultats du désabonnement massif:', results);
+                        handleBulkUnsubscribeClose();
+                        loadDashboardData();
+                        
+                      } catch (error) {
+                        console.error('Erreur lors du désabonnement massif:', error);
+                        setBulkUnsubscribeModal(prev => ({ ...prev, isProcessing: false }));
+                      }
+                    }}
+                    disabled={bulkUnsubscribeModal.isProcessing}
+                    className="bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50"
+                  >
+                    {bulkUnsubscribeModal.isProcessing 
+                      ? 'Traitement en cours...'
+                      : 'Lancer le désabonnement massif'
+                    }
+                  </Button>
+                </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
