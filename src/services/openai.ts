@@ -104,7 +104,7 @@ class OpenAIService {
   }
 
   /**
-   * Classifie un email en utilisant GPT-4 (modèle premium pour précision maximale)
+   * Classifie un email en utilisant GPT-4o mini (modèle économique et performant)
    */
   async classifyEmail(email: ProcessedEmail, existingCategories: Category[]): Promise<ClassificationResult> {
     try {
@@ -121,7 +121,7 @@ class OpenAIService {
       const prompt = this.buildClassificationPrompt(email, existingCategoryNames);
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4', // CHANGÉ : GPT-4 pour la classification critique
+        model: 'gpt-4o-mini', // CHANGÉ : GPT-4o mini pour la classification
         messages: [
           {
             role: 'system',
@@ -157,7 +157,7 @@ class OpenAIService {
           category_name: matchedCategory.name,
           confidence: 0.9,
           auto_created: false,
-          reasoning: `Classé comme ${matchedCategory.name} par OpenAI GPT-4`
+          reasoning: `Classé comme ${matchedCategory.name} par OpenAI GPT-4o mini`
         };
       } else {
         console.warn(`⚠️ Catégorie "${categoryName}" non trouvée, utilisation du fallback`);
