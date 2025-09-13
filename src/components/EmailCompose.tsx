@@ -48,20 +48,22 @@ ${replyTo.body_text || replyTo.snippet}`;
     }
   }, [replyTo, recipient]);
 
-  // Fonction d'analyse IA du message
+  // Fonction d'amélioration IA du message
   const analyzeWithAI = async () => {
     if (!message.trim()) return;
     
     setIsAnalyzing(true);
     try {
-      const response = await openaiService.getAdvancedEmailResponse(
-        `Analyse ce brouillon d'email et suggère des améliorations pour le rendre plus professionnel, clair et efficace. Voici le message à analyser :
+      const improveEmailPrompt = `Réécris ce brouillon d'email pour qu'il soit plus professionnel et efficace. Retourne UNIQUEMENT la version améliorée, sans commentaire ni analyse :
 
 Destinataire: ${to}
 Objet: ${subject}
 Message: ${message}
 
-Donne-moi une version améliorée avec des explications des changements suggérés.`,
+Version améliorée:`;
+
+      const response = await openaiService.getAdvancedEmailResponse(
+        improveEmailPrompt,
         []
       );
       

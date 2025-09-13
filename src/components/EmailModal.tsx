@@ -1,4 +1,4 @@
-import { Calendar, User, Paperclip, Star, Reply, Forward, Archive } from 'lucide-react'
+import { Calendar, User, Paperclip, Star, Reply, Forward } from 'lucide-react'
 import { Button } from './ui/button'
 import { Modal } from './ui/modal'
 import { useState } from 'react'
@@ -110,17 +110,8 @@ export function EmailModal({ email, isOpen, onClose }: EmailModalProps) {
             <Forward className="h-4 w-4 mr-2" />
             Transférer
           </Button>
-          <Button variant="outline" size="sm">
-            <Archive className="h-4 w-4 mr-2" />
-            Archiver
-          </Button>
           {email.is_important && (
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 ml-auto" />
-          )}
-          {!email.is_read && (
-            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-auto">
-              Non lu
-            </span>
           )}
         </div>
 

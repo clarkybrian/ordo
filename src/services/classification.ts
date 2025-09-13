@@ -101,61 +101,61 @@ class AdvancedClassificationService {
   private classifier: any = null;
   private categoryVectors: Map<string, number[]> = new Map();
   
-  // Patterns améliorés pour les 8 catégories UNIQUEMENT avec une meilleure séparation
+  // 8 CATÉGORIES OPTIMALES pour 95%+ de couverture avec règles intelligentes
   private readonly categoryPatterns: Record<string, CategoryPattern> = {
+    'Services': {
+      keywords: ['facture', 'invoice', 'bill', 'paiement', 'payment', 'montant', 'échéance', 'renouvellement', 'edf', 'engie', 'gdf', 'électricité', 'gaz', 'kwh', 'compteur', 'orange', 'sfr', 'free', 'bouygues', 'internet', 'mobile', 'forfait', 'data', 'fibre', 'assurance', 'mutuelle', 'abonnement', 'prélèvement', 'cotisation'],
+      senderPatterns: ['edf.fr', 'engie.fr', 'orange.fr', 'sfr.fr', 'free.fr', 'bouygues', 'facturation', 'billing', 'service.client', 'noreply', 'no-reply', 'assurance', 'mutuelle', 'clients@'],
+      color: '#ef4444',
+      icon: '📄',
+      weight: 1.0
+    },
     'Banque': {
-      keywords: ['banque', 'bank', 'compte', 'virement', 'carte', 'crédit', 'débit', 'solde', 'relevé', 'iban', 'transaction', 'prélèvement', 'versement', 'cotisation', 'découvert', 'épargne', 'livret', 'assurance', 'crédit', 'emprunt'],
-      senderPatterns: ['banque', 'bank', 'credit', 'agricole', 'bnp', 'societe', 'generale', 'lcl', 'cic', 'caisse', 'epargne', 'bred', 'banquepopulaire', 'hsbc', 'ing'],
+      keywords: ['banque', 'bank', 'compte', 'virement', 'carte', 'crédit', 'débit', 'solde', 'relevé', 'iban', 'transaction', 'cb', 'mastercard', 'visa', 'découvert', 'épargne', 'livret', 'emprunt', 'crédit', 'hypothèque'],
+      senderPatterns: ['credit-agricole.fr', 'bnpparibas', 'societegenerale.fr', 'lcl.fr', 'banquepopulaire', 'caisse-epargne', 'bred.fr', 'cic.fr', 'hsbc.fr', 'ing.fr', 'boursorama', 'fortuneo', 'monabanq'],
       color: '#10b981',
       icon: '🏦',
       weight: 1.0
     },
-    'Personnel': {
-      keywords: ['famille', 'ami', 'personnel', 'privé', 'invitation', 'anniversaire', 'mariage', 'vacances', 'weekend', 'soirée', 'rendez-vous', 'merci', 'salut', 'bisous', 'bises', 'cordialement', 'amicalement', 'cher', 'chère', 'bonjour', 'bonsoir', 'comment vas-tu', 'j\'espère que tu vas bien', 'des nouvelles', 'prendre contact'],
-      senderPatterns: ['gmail.com', 'yahoo.fr', 'hotmail.com', 'outlook.com', 'free.fr', 'orange.fr', 'wanadoo.fr', 'laposte.net'],
-      color: '#8b5cf6',
-      icon: '👤',
-      weight: 1.3
-    },
     'Travail': {
-      keywords: ['réunion', 'meeting', 'projet', 'équipe', 'deadline', 'rapport', 'présentation', 'tâche', 'mission', 'client', 'collègue', 'manager', 'rh', 'contrat', 'bureau', 'société', 'entreprise', 'travail'],
-      senderPatterns: ['hr', 'rh', 'manager', 'chef', 'direction', 'entreprise', 'societe', 'inc', 'ltd', 'corp', 'company', 'group', 'team'],
+      keywords: ['réunion', 'meeting', 'projet', 'équipe', 'deadline', 'rapport', 'présentation', 'tâche', 'mission', 'client', 'collègue', 'manager', 'bureau', 'société', 'entreprise', 'contrat', 'planning', 'objectifs'],
+      senderPatterns: ['.com', '.fr', '.eu', '.org', '.net', '!gmail.com', '!yahoo.fr', '!hotmail.com', '!outlook.com', '!free.fr', 'hr@', 'rh@', 'team@', 'info@', 'contact@'],
       color: '#f59e0b',
       icon: '💼',
       weight: 1.0
     },
-    'Factures': {
-      keywords: ['facture', 'invoice', 'bill', 'payment', 'paiement', 'montant', 'payé', 'payer', 'échéance', 'edf', 'gdf', 'orange', 'sfr', 'free', 'bouygues', 'électricité', 'gaz', 'internet', 'mobile', 'téléphone', 'abonnement', 'forfait', 'renouvellement'],
-      senderPatterns: ['noreply', 'facturation', 'billing', 'no-reply', 'service.client', 'edf', 'engie', 'orange', 'sfr', 'bouygues', 'free', 'clients'],
-      color: '#ef4444',
-      icon: '�',
-      weight: 1.0
-    },
-    'Billets': {
-      keywords: ['vol', 'avion', 'train', 'hôtel', 'réservation', 'booking', 'voyage', 'vacation', 'billet', 'ticket', 'sncf', 'air', 'vacances', 'séjour', 'transport', 'destination', 'itinéraire', 'check-in', 'embarquement', 'confirmation'],
-      senderPatterns: ['booking', 'airbnb', 'hotels', 'sncf', 'air', 'ryanair', 'easyjet', 'voyage', 'travel', 'trip', 'expedia', 'skyscanner'],
-      color: '#06b6d4',
-      icon: '🎫',
-      weight: 1.0
-    },
-    'Promotions': {
-      keywords: ['promo', 'promotion', 'offre', 'reduction', 'soldes', 'discount', 'code promo', 'bon plan', 'deal', 'cashback', 'remise', 'special', 'limited', 'exclusive', 'save', 'économie', 'gratuit', 'free', 'cadeau', 'gift'],
-      senderPatterns: ['promo', 'marketing', 'deals', 'offers', 'sales', 'newsletter'],
-      color: '#f97316',
-      icon: '�️',
-      weight: 0.9
-    },
-    'Réseaux sociaux': {
-      keywords: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'notification', 'mention', 'like', 'commentaire', 'message', 'ami', 'connexion', 'réseau social', 'post', 'photo', 'vidéo', 'story'],
-      senderPatterns: ['facebook', 'instagram', 'twitter', 'linkedin', 'snapchat', 'tiktok', 'youtube', 'social', 'notification'],
+    'Achats': {
+      keywords: ['commande', 'order', 'livraison', 'delivery', 'expédition', 'colis', 'amazon', 'cdiscount', 'fnac', 'darty', 'boulanger', 'zalando', 'vinted', 'leboncoin', 'marketplace', 'tracking', 'suivi', 'confirmer', 'confirmation', 'reçu'],
+      senderPatterns: ['amazon.fr', 'cdiscount.com', 'fnac.com', 'darty.com', 'zalando.fr', 'vinted.fr', 'leboncoin.fr', 'ebay.fr', 'aliexpress.com', 'marketplace', 'shop', 'store', 'boutique'],
       color: '#8b5cf6',
-      icon: '📱',
+      icon: '🛍️',
       weight: 1.0
+    },
+    'Administration': {
+      keywords: ['impots', 'taxes', 'caf', 'cpam', 'sécurité sociale', 'prefecture', 'mairie', 'administration', 'déclaration', 'attestation', 'cerfa', 'dossier', 'demande', 'service public', 'pôle emploi', 'rsa', 'apl', 'allocation', 'remboursement', 'carte grise', 'passeport'],
+      senderPatterns: ['impots.gouv.fr', 'caf.fr', 'ameli.fr', 'pole-emploi.fr', 'service-public.fr', 'gouv.fr', 'prefecture', 'mairie', 'administration', 'public'],
+      color: '#06b6d4',
+      icon: '�️',
+      weight: 1.0
+    },
+    'Voyages': {
+      keywords: ['vol', 'avion', 'train', 'sncf', 'tgv', 'hôtel', 'booking', 'réservation', 'billet', 'ticket', 'voyage', 'vacances', 'check-in', 'embarquement', 'confirmation', 'itinéraire', 'airbnb', 'hotel', 'destination'],
+      senderPatterns: ['sncf-connect.com', 'booking.com', 'airbnb.fr', 'hotels.com', 'expedia.fr', 'skyscanner.fr', 'ryanair.com', 'easyjet.com', 'air-france.fr', 'voyage', 'travel', 'trip'],
+      color: '#84cc16',
+      icon: '✈️',
+      weight: 1.0
+    },
+    'Personnel': {
+      keywords: ['famille', 'ami', 'personnel', 'privé', 'invitation', 'anniversaire', 'mariage', 'vacances', 'weekend', 'soirée', 'merci', 'bisous', 'bises', 'cordialement', 'amicalement', 'salut', 'coucou'],
+      senderPatterns: ['gmail.com', 'yahoo.fr', 'hotmail.com', 'outlook.com', 'free.fr', 'orange.fr', 'wanadoo.fr', 'laposte.net'],
+      color: '#ec4899',
+      icon: '�',
+      weight: 1.3
     },
     'Publicité': {
-      keywords: ['publicité', 'pub', 'marketing', 'spam', 'newsletter', 'unsubscribe', 'désabonner', 'indeed', 'pole emploi', 'offre emploi', 'job offer', 'candidature', 'cv', 'embauche', 'recrutement', 'deliveroo', 'uber', 'auto école', 'permis', 'formation'],
-      senderPatterns: ['noreply', 'no-reply', 'marketing', 'newsletter', 'info@', 'contact@', 'team@', 'hello@', 'indeed', 'pole-emploi', 'apec', 'monster', 'leboncoin', 'deliveroo', 'uber', 'autoecole'],
-      color: '#f43f5e',
+      keywords: ['newsletter', 'promo', 'promotion', 'offre', 'réduction', 'soldes', 'discount', 'code promo', 'deal', 'gratuit', 'free', 'cadeau', 'exclusif', 'limited', 'unsubscribe', 'désabonner', 'spam', 'marketing'],
+      senderPatterns: ['newsletter@', 'promo@', 'marketing@', 'deals@', 'offers@', 'noreply@', 'no-reply@', 'info@', 'contact@'],
+      color: '#f97316',
       icon: '📢',
       weight: 1.2
     }
@@ -601,70 +601,10 @@ class AdvancedClassificationService {
     return Math.min(contextScore, 1.0);
   }
 
-  private async detectAndCreateCategory(features: EmailFeatures, existingCategories: Category[]): Promise<Category | null> {
-    // 🚫 LIMITATION STRICTE : Maximum 8 catégories automatiques
-    const autoGeneratedCategories = existingCategories.filter(cat => cat.is_auto_generated === true);
-    if (autoGeneratedCategories.length >= 8) {
-      console.log('🚫 Limite de 8 catégories automatiques atteinte');
-      return null;
-    }
-    
-    // Limite globale de sécurité
-    if (existingCategories.length >= 15) {
-      console.log('🚫 Limite totale de 15 catégories atteinte');
-      return null;
-    }
-
-    // Priorité aux catégories prédéfinies disponibles
-    const availablePredefinedCategories = this.getAvailablePredefinedCategories(existingCategories);
-    
-    if (availablePredefinedCategories.length > 0) {
-      // Tenter de matcher avec une catégorie prédéfinie
-      for (const categoryName of availablePredefinedCategories) {
-        const pattern = this.categoryPatterns[categoryName];
-        if (pattern) {
-          const score = this.calculatePatternScore(features, pattern, {
-            subject: features.words.join(' '),
-            body_text: features.words.join(' '),
-            sender: features.senderDomain,
-            sender_email: features.senderDomain,
-            is_important: features.isImportant
-          } as any);
-          
-          if (score > 0.3) {
-            console.log(`🆕 Création automatique de catégorie prédéfinie: "${categoryName}" (score: ${score.toFixed(3)})`);
-            try {
-              return await this.createCategory(categoryName);
-            } catch (error) {
-              console.error('Erreur création catégorie prédéfinie:', error);
-            }
-          }
-        }
-      }
-    }
-
-    // Détection automatique basée sur les sujets et entités
-    const potentialCategories = this.generateCategoryNames(features);
-    
-    for (const categoryName of potentialCategories) {
-      // Vérifier si une catégorie similaire existe déjà
-      const exists = existingCategories.some(cat => 
-        cat.name.toLowerCase().includes(categoryName.toLowerCase()) ||
-        categoryName.toLowerCase().includes(cat.name.toLowerCase())
-      );
-      
-      if (!exists && categoryName.length > 2) {
-        console.log(`🆕 Création automatique de catégorie: "${categoryName}"`);
-        
-        try {
-          const newCategory = await this.createCategory(categoryName);
-          return newCategory;
-        } catch (error) {
-          console.error('Erreur création catégorie auto:', error);
-        }
-      }
-    }
-    
+  private async detectAndCreateCategory(_features: EmailFeatures, _existingCategories: Category[]): Promise<Category | null> {
+    // 🚫 CRÉATION AUTOMATIQUE TOTALEMENT DÉSACTIVÉE
+    // L'IA doit UNIQUEMENT utiliser les catégories existantes
+    console.log('🚫 Création automatique désactivée - utilisation des catégories existantes uniquement');
     return null;
   }
 

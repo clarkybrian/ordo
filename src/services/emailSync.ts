@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { gmailService, type ProcessedEmail } from './gmail';
 import { classificationService, type Category } from './classification';
+import { openaiService } from './openai'; // Import du service OpenAI enrichi
 
 export interface SyncResult {
   success: boolean;
@@ -215,45 +216,18 @@ class EmailSyncService {
         });
 
         try {
-          // Classifier l'email
-          const classification = await classificationService.classifyEmail(email, categories);
+          // 🚀 UTILISATION D'OPENAI AVEC PROMPT ENRICHI (au lieu de l'ancien système)
+          console.log(`🤖 Classification OpenAI de l'email: "${email.subject}"`);
+          const classification = await openaiService.classifyEmail(email, categories);
           
           let categoryId = classification.category_id || '';
           
-          // Si c'est une catégorie auto-générée, la créer si nécessaire
-          if (categoryId.startsWith('auto_')) {
-            // Récupérer les informations de la catégorie suggérée
-            const suggestedCategory = classification.suggested_categories?.[0];
-            
-            if (suggestedCategory) {
-              console.log(`🆕 Création automatique de la catégorie: "${suggestedCategory.name}"`);
-              
-              const { data: newCategory, error } = await supabase
-                .from('categories')
-                .insert({
-                  user_id: user.id,
-                  name: suggestedCategory.name,
-                  color: suggestedCategory.color,
-                  icon: suggestedCategory.icon,
-                  description: `Catégorie créée automatiquement`,
-                  is_default: false,
-                  is_auto_generated: true
-                })
-                .select()
-                .single();
-
-              if (!error && newCategory) {
-                categoryId = newCategory.id;
-                result.created_categories++;
-                console.log(`✅ Catégorie "${suggestedCategory.name}" créée avec succès`);
-                
-                // Ajouter à la liste des catégories pour éviter les duplicatas
-                categories.push(newCategory);
-              } else {
-                console.error(`❌ Erreur création catégorie "${suggestedCategory.name}":`, error);
-                categoryId = ''; // Assigner à "Non classés"
-              }
-            }
+          // Création automatique désactivée - utilise uniquement les catégories existantes
+          if (!categoryId || categoryId === 'uncategorized') {
+            console.log(`⚠️ Email "${email.subject}" non classé - assigné aux "Non classés"`);
+            categoryId = ''; // Null pour "Non classés"
+          } else {
+            console.log(`✅ Email "${email.subject}" classé dans "${classification.category_name}" (confiance: ${classification.confidence})`);
           }
 
           // Sauvegarder l'email

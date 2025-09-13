@@ -4,25 +4,26 @@ import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
 // import { chatbotLimiterService } from './chatbotLimiter';
 
-interface EmailContext {
-  id: string;
-  subject: string;
-  sender_name: string;
-  sender_email: string;
-  received_at: string;
-  body_text?: string;
-  snippet?: string;
-  is_read: boolean;
-  is_important: boolean;
-  category?: string;
-  labels?: string[];
-  attachments?: unknown[];
-}
+// Interface pour le contexte email (utilisée dans d'autres fonctions si besoin)
+// interface EmailContext {
+//   id: string;
+//   subject: string;
+//   sender_name: string;
+//   sender_email: string;
+//   received_at: string;
+//   body_text?: string;
+//   snippet?: string;
+//   is_read: boolean;
+//   is_important: boolean;
+//   category?: string;
+//   labels?: string[];
+//   attachments?: unknown[];
+// }
 
-interface ConversationMessage {
-  content: string;
-  isUser: boolean;
-}
+// interface ConversationMessage {
+//   content: string;
+//   isUser: boolean;
+// }
 
 export interface ClassificationResult {
   category_id: string;
@@ -78,7 +79,7 @@ interface EmailWithCategory {
 }
 
 class OpenAIService {
-  private openai: OpenAI;
+  private openai: OpenAI | null;
   private readonly MAX_CATEGORIES = 8;
   private readonly MIN_CATEGORIES = 1;
 
@@ -87,7 +88,7 @@ class OpenAIService {
     if (!apiKey || apiKey.length < 50) {
       console.warn('⚠️ Clé API OpenAI manquante ou incorrecte - Assistant désactivé temporairement');
       // Créer un client factice pour éviter les erreurs
-      this.openai = null as any;
+      this.openai = null;
       return;
     }
     
@@ -98,12 +99,12 @@ class OpenAIService {
       });
     } catch (error) {
       console.warn('⚠️ Erreur initialisation OpenAI:', error);
-      this.openai = null as any;
+      this.openai = null;
     }
   }
 
   /**
-   * Classifie un email en utilisant GPT-4o-mini (modèle ultra-économique)
+   * Classifie un email en utilisant GPT-4 (modèle premium pour précision maximale)
    */
   async classifyEmail(email: ProcessedEmail, existingCategories: Category[]): Promise<ClassificationResult> {
     try {
@@ -116,25 +117,24 @@ class OpenAIService {
       console.log(`🤖 Classification OpenAI de l'email: "${email.subject}"`);
 
       const existingCategoryNames = existingCategories.map(cat => cat.name);
-      const categoryCount = existingCategories.length;
 
-      const prompt = this.buildClassificationPrompt(email, existingCategoryNames, categoryCount);
+      const prompt = this.buildClassificationPrompt(email, existingCategoryNames);
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Modèle ultra-économique (60x moins cher que GPT-4)
+        model: 'gpt-4', // CHANGÉ : GPT-4 pour la classification critique
         messages: [
           {
             role: 'system',
-            content: 'Tu es un assistant expert en classification d\'emails. Tu dois analyser un email et déterminer sa catégorie la plus appropriée.'
+            content: 'Tu es un assistant expert en classification d\'emails. Tu dois analyser un email et répondre UNIQUEMENT avec le nom exact de la catégorie appropriée parmi celles proposées.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 100, // Divisé par 2 pour économiser
+        max_tokens: 50, // Réduit car on veut juste le nom de catégorie
         temperature: 0.1, // Faible pour des résultats plus déterministes
-        response_format: { type: 'json_object' }
+        // RETIRÉ: response_format JSON qui causait la confusion
       });
 
       const response = completion.choices[0].message.content;
@@ -142,10 +142,27 @@ class OpenAIService {
         throw new Error('Réponse vide de OpenAI');
       }
 
-      const result = JSON.parse(response);
-      console.log('📊 Résultat de classification:', result);
+      // Le résultat est maintenant directement le nom de la catégorie
+      const categoryName = response.trim();
+      console.log('📊 Catégorie choisie par OpenAI:', categoryName);
 
-      return await this.processClassificationResult(result, existingCategories);
+      // Trouver la catégorie correspondante
+      const matchedCategory = existingCategories.find(
+        cat => cat.name.toLowerCase() === categoryName.toLowerCase()
+      );
+
+      if (matchedCategory) {
+        return {
+          category_id: matchedCategory.id,
+          category_name: matchedCategory.name,
+          confidence: 0.9,
+          auto_created: false,
+          reasoning: `Classé comme ${matchedCategory.name} par OpenAI GPT-4`
+        };
+      } else {
+        console.warn(`⚠️ Catégorie "${categoryName}" non trouvée, utilisation du fallback`);
+        return this.getFallbackCategory(existingCategories);
+      }
 
     } catch (error) {
       console.error('❌ Erreur lors de la classification OpenAI:', error);
@@ -155,40 +172,348 @@ class OpenAIService {
   }
 
   /**
+   * Enrichit le contexte email avec des métadonnées avancées pour classification précise
+   */
+  private enrichEmailContext(email: ProcessedEmail): string {
+    const senderDomain = email.sender_email.split('@')[1] || '';
+    const senderName = email.sender || 'Nom inconnu';
+    
+    // Analyse du domaine
+    const personalDomains = ['gmail.com', 'yahoo.fr', 'yahoo.com', 'hotmail.com', 'outlook.com', 'free.fr', 'orange.fr', 'laposte.net'];
+    const serviceDomains = ['edf.fr', 'engie.fr', 'orange.fr', 'sfr.fr', 'free.fr', 'bouyguestelecom.fr'];
+    const bankDomains = ['credit-agricole.fr', 'bnpparibas.net', 'societegenerale.fr', 'banque-populaire.fr'];
+    const adminDomains = ['gouv.fr', 'impots.gouv.fr', 'ameli.fr', 'caf.fr', 'pole-emploi.fr'];
+    const ecommerceDomains = ['amazon.fr', 'amazon.com', 'cdiscount.com', 'zalando.fr', 'fnac.com'];
+    
+    const isPersonalDomain = personalDomains.includes(senderDomain);
+    const isServiceDomain = serviceDomains.includes(senderDomain);
+    const isBankDomain = bankDomains.includes(senderDomain);
+    const isAdminDomain = adminDomains.includes(senderDomain);
+    const isEcommerceDomain = ecommerceDomains.includes(senderDomain);
+    
+    // Analyse du nom d'expéditeur
+    const hasPersonName = /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(senderName);
+    const isNoReply = email.sender_email.includes('noreply') || email.sender_email.includes('no-reply') || 
+                     email.sender_email.includes('notification') || email.sender_email.includes('contact');
+    
+    // Analyse du contenu
+    const content = (email.body_text || email.snippet || '').toLowerCase();
+    const hasUnsubscribe = content.includes('unsubscribe') || content.includes('désabonner') || 
+                          content.includes('se désinscrire') || content.includes('newsletter');
+    
+    // Détection de patterns spécifiques
+    const hasPromoKeywords = content.includes('promotion') || content.includes('offre spéciale') || 
+                            content.includes('réduction') || content.includes('soldes') || 
+                            content.includes('prix en baisse') || content.includes('deal') ||
+                            content.includes('discount') || content.includes('promo');
+    
+    const hasJobKeywords = content.includes('offre d\'emploi') || content.includes('candidature') || 
+                          content.includes('recrutement') || content.includes('cv') ||
+                          content.includes('job alert') || content.includes('opportunité');
+    
+    const hasBillKeywords = content.includes('facture') || content.includes('prélèvement') || 
+                           content.includes('échéance') || content.includes('facturation') ||
+                           content.includes('billing') || content.includes('invoice');
+    
+    const hasTransactionKeywords = content.includes('virement') || content.includes('relevé') || 
+                                  content.includes('carte bancaire') || content.includes('transaction') ||
+                                  content.includes('solde') || content.includes('compte');
+    
+    // Détection de domaines problématiques
+    const isJobSiteDomain = ['indeed.com', 'hellowork.com', 'linkedin.com', 'monster.fr'].includes(senderDomain);
+    const isMarketingSender = senderName.toLowerCase().includes('marketing') || 
+                             senderName.toLowerCase().includes('promo') ||
+                             senderName.toLowerCase().includes('deals');
+    
+    return `🔍 ANALYSE DÉTAILLÉE DE L'EMAIL:
+
+📧 INFORMATIONS DE BASE:
+Expéditeur: ${email.sender_email} (${senderName})
+Sujet: "${email.subject}"
+Date: ${new Date(email.received_at).toLocaleString('fr-FR')}
+
+🌐 ANALYSE DU DOMAINE:
+Domaine: ${senderDomain}
+Type de domaine: ${
+  isAdminDomain ? '🏛️ ADMINISTRATION OFFICIELLE' :
+  isBankDomain ? '🏦 BANQUE OFFICIELLE' :
+  isServiceDomain ? '📄 FOURNISSEUR DE SERVICES' :
+  isEcommerceDomain ? '🛍️ E-COMMERCE' :
+  isPersonalDomain ? '👤 DOMAINE PERSONNEL' :
+  isJobSiteDomain ? '🚨 SITE D\'EMPLOI (→ PUBLICITÉ)' : 
+  '🏢 DOMAINE PROFESSIONNEL'
+}
+
+👤 ANALYSE DE L'EXPÉDITEUR:
+Type d'expéditeur: ${isNoReply ? '🤖 AUTOMATIQUE/NOREPLY' : hasPersonName ? '👨 PERSONNE RÉELLE' : '🏢 SERVICE/ORGANISATION'}
+Sender marketing détecté: ${isMarketingSender ? '🚨 OUI (→ PUBLICITÉ)' : 'Non'}
+
+📝 ANALYSE DU CONTENU:
+Contenu (300 premiers caractères): "${(email.body_text || email.snippet || '').substring(0, 300)}..."
+
+🎯 DÉTECTIONS SPÉCIALES:
+Lien de désabonnement: ${hasUnsubscribe ? '🚨 OUI (→ PUBLICITÉ PROBABLE)' : 'Non'}
+Mots-clés promotion: ${hasPromoKeywords ? '🚨 OUI (→ PUBLICITÉ)' : 'Non'}
+Mots-clés emploi: ${hasJobKeywords ? '🔍 OUI (Attention: si newsletter → PUBLICITÉ)' : 'Non'}
+Mots-clés facture: ${hasBillKeywords ? '📄 OUI (→ SERVICES probable)' : 'Non'}
+Mots-clés transaction: ${hasTransactionKeywords ? '🏦 OUI (→ BANQUE probable)' : 'Non'}
+
+⚡ INDICATEURS CRITIQUES:
+Domaine site d'emploi: ${isJobSiteDomain ? '🚨 OUI → PUBLICITÉ (HelloWork, Indeed, etc.)' : 'Non'}
+Email important: ${email.is_important ? 'Oui' : 'Non'}
+Email lu: ${email.is_read ? 'Oui' : 'Non'}
+
+🎯 RECOMMANDATION BASÉE SUR L'ANALYSE:`;
+  }
+
+  /**
    * Construit le prompt pour la classification
    */
-  private buildClassificationPrompt(email: ProcessedEmail, existingCategories: string[], categoryCount: number): string {
-    return `Email:
-Expéditeur: ${email.sender_email}
-Sujet: ${email.subject}
-Contenu: ${email.snippet}
+  private buildClassificationPrompt(email: ProcessedEmail, existingCategories: string[]): string {
+    const enrichedContext = this.enrichEmailContext(email);
+    
+    return `${enrichedContext}
 
-RÈGLES SPÉCIALES DE CLASSIFICATION PROFESSIONNELLE :
+1. 📄 SERVICES (PRIORITÉ MAXIMALE)
 
-1. **Alertes d'emploi automatiques** → "Offres d'emploi" :
-   - HelloWork, Indeed, LinkedIn Job Alerts, Pôle Emploi
-   - Sujets : "offre", "poste", "candidature", "job alert", "emploi", "recrutement"
-   - Expéditeurs : noreply@, jobs@, alerts@, notifications@
+Définition : Emails provenant de fournisseurs essentiels (eau, électricité, internet, assurances, téléphonie), incluant factures, abonnements, contrats, relances officielles.
 
-2. **Vrais emails professionnels** → "Travail" :
-   - Emails de vraies personnes (prénom.nom@entreprise.com)
-   - Communications directes avec collègues, clients, partenaires
-   - Emails personnalisés avec contexte spécifique
+✅ EXEMPLES VALIDES
 
-3. **Notifications LinkedIn non-emploi** → "Réseaux sociaux" :
-   - Suggestions d'amis, demandes de connexion
-   - Notifications d'activité, likes, commentaires
+EDF : "Votre facture d’électricité est disponible" → Services
 
-4. **Emails promotionnels** → "Promotions" :
-   - Newsletters, offres commerciales, marketing
+Orange : "Votre abonnement internet a été renouvelé" → Services
 
-Catégories: ${existingCategories.join(', ') || 'Aucune'}
+Allianz : "Votre cotisation annuelle est arrivée à échéance" → Services
 
-${categoryCount >= this.MAX_CATEGORIES ? 
-  'LIMITE: Utilise catégorie existante uniquement.' : 
-  'Peut créer nouvelle catégorie (max 8).'}
+Véolia : "Relevé de consommation d’eau" → Services
 
-JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"reasoning":"court"}`;
+🚫 EXCLUS (vers Publicité)
+
+"Changez de fournisseur EDF pour payer moins cher" → Publicité
+
+"Nouvelle offre SFR avec -50%" → Publicité
+
+"Assurance habitation pas chère" d’un site comparateur → Publicité
+
+Critères techniques
+
+Expéditeur : @edf.fr, @engie.com, @orange.fr, etc.
+
+Contenu : facture, prélèvement, échéance, consommation, relevé
+
+Jamais de mention unsubscribe (sinon → Pub).
+
+2. 🏦 BANQUE (TRÈS HAUTE PRIORITÉ)
+
+Définition : Emails provenant de banques traditionnelles, incluant relevés, transactions, sécurité, alertes fraude, cartes bancaires.
+
+✅ EXEMPLES VALIDES
+
+Crédit Agricole : "Votre virement de 200€ a été effectué" → Banque
+
+BNP : "Nouvelle carte bancaire envoyée" → Banque
+
+Société Générale : "Alerte sécurité : connexion inhabituelle" → Banque
+
+🚫 EXCLUS
+
+Revolut, N26 (marketing promos cashback) → Publicité
+
+Crypto newsletters ("Achetez du Bitcoin") → Publicité
+
+Banques mais email non-officiel (@gmail.com) → Phishing → à ignorer / Pub
+
+Critères techniques
+
+Domaines bancaires exacts : @credit-agricole.fr, @bnpparibas.net, @socgen.com…
+
+Contenu : virement, relevé, solde, carte, sécurité
+
+Si "unsubscribe" présent → ce n’est PAS banque → Publicité.
+
+3. 🏛️ ADMINISTRATION (TRÈS HAUTE PRIORITÉ)
+
+Définition : Emails officiels des services publics et démarches administratives.
+
+✅ EXEMPLES VALIDES
+
+Impôts : "Votre avis d’imposition est disponible" → Administration
+
+Ameli : "Remboursement de vos frais médicaux" → Administration
+
+CAF : "Nouvelle attestation disponible" → Administration
+
+Pôle emploi : "Rendez-vous mensuel" → Administration
+
+🚫 EXCLUS
+
+Emploi.org, Indeed → newsletters emploi → Publicité
+
+Sites imitant impôts mais domaine non officiel (.com) → Phishing/Pub
+
+Critères techniques
+
+Domaines officiels : .gouv.fr, @ameli.fr, @caf.fr, @pole-emploi.fr
+
+Contenu : remboursement, déclaration, avis, attestation
+
+Pas d’unsubscribe.
+
+4. 🛍️ ACHATS (HAUTE PRIORITÉ)
+
+Définition : Emails de confirmation d’achat réel, factures liées à un achat e-commerce.
+
+✅ EXEMPLES VALIDES
+
+Amazon : "Votre commande #1234 a été expédiée" → Achats
+
+Fnac : "Votre colis est prêt en magasin" → Achats
+
+Cdiscount : "Facture de votre commande" → Achats
+
+🚫 EXCLUS
+
+Amazon : "Promotion sur les TV -50%" → Publicité
+
+Fnac newsletter : "Nouveautés culturelles" → Publicité
+
+Critères techniques
+
+Domaines : @amazon.fr, @cdiscount.com, @fnac.com…
+
+Contenu : commande, facture, expédition, suivi
+
+Si promotion/unsubscribe → Publicité.
+
+5. ✈️ VOYAGES (PRIORITÉ MOYENNE)
+
+Définition : Emails confirmant des réservations de transport ou hébergement réels.
+
+✅ EXEMPLES VALIDES
+
+SNCF : "Votre billet Paris-Lyon est confirmé" → Voyages
+
+Air France : "Check-in ouvert" → Voyages
+
+Booking : "Votre réservation d’hôtel est confirmée" → Voyages
+
+🚫 EXCLUS
+
+Air France promo : "Destinations à -30%" → Publicité
+
+Sites de deals voyage → Publicité
+
+Critères techniques
+
+Domaines : @sncf-connect.com, @airfrance.fr, @booking.com
+
+Contenu : réservation confirmée, billet, embarquement, hôtel
+
+Si unsubscribe/promo → Publicité.
+
+6. 💼 TRAVAIL (PRIORITÉ STRICTE)
+
+Définition : Communication professionnelle réelle (collègues, clients, employeurs).
+
+✅ EXEMPLES VALIDES
+
+Mail interne entreprise : "Réunion projet lundi 14h" → Travail
+
+Client : "Merci pour l’envoi du devis" → Travail
+
+RH : "Planning de la formation interne" → Travail
+
+🚫 EXCLUS
+
+Indeed : "Offres d’emploi disponibles" → Publicité
+
+LinkedIn : "Découvrez de nouvelles opportunités" → Publicité
+
+Coaching carrière : Publicité
+
+Critères techniques
+
+Domaine entreprise : @entreprise.com
+
+Expéditeur réel (nom + prénom, pas noreply@)
+
+Pas d’unsubscribe.
+
+7. 👤 PERSONNEL (PRIORITÉ CIBLÉE)
+
+Définition : Emails de correspondance privée (famille, amis, proches).
+
+✅ EXEMPLES VALIDES
+
+"Salut, on se voit ce week-end ?" depuis @gmail.com → Personnel
+
+"Joyeux anniversaire !" de @yahoo.fr → Personnel
+
+🚫 EXCLUS
+
+Gmail mais newsletter (ex: "Chess.com daily puzzle") → Publicité
+
+Coaching personnel avec unsubscribe → Publicité
+
+Critères techniques
+
+Domaines grand public : @gmail.com, @yahoo.fr, @hotmail.com
+
+Expéditeur = nom réel (pas entreprise)
+
+Contenu = personnel (pas pub).
+
+8. 📢 PUBLICITÉ (CATCH-ALL)
+
+Définition : Tout email marketing, promotion, spam, newsletter.
+
+✅ EXEMPLES VALIDES
+
+AliExpress : "Profitez de -70% aujourd’hui" → Publicité
+
+HelloWork : "20 nouvelles offres d’emploi" → Publicité
+
+Coaching : "Améliorez votre CV" → Publicité
+
+Jeux/loisirs : Chess.com, Spotify newsletters → Publicité
+
+Critères techniques
+
+Présence d’unsubscribe = toujours Publicité (sauf Services/Banque/Admin)
+
+Expéditeur : noreply@ + contenu marketing = Publicité
+
+Domaines inconnus + promo = Publicité
+
+🔥 RÈGLES ANTI-ERREUR (renforcées)
+
+Hiérarchie stricte (cascade) :
+Services > Banque > Administration > Achats > Voyages > Travail > Personnel > Publicité
+
+Mot-clés critiques :
+
+unsubscribe, newsletter, promotion, offre, deal = Publicité
+
+facture, échéance, virement, attestation, réservation = catégorie officielle correspondante
+
+Expéditeur :
+
+Domaines officiels = Services/Banque/Admin
+
+Gmail/Yahoo/Hotmail + contenu personnel = Personnel
+
+Gmail + marketing = Publicité
+
+Phishing / faux domaines :
+
+EDF via @gmail.com = pas Services → Publicité (ou suspect)
+
+Impôts via .com = pas Administration → Publicité (ou suspect)
+
+Catégories disponibles: ${existingCategories.join(', ')}
+
+🎯 INSTRUCTION FINALE: Analyse l'email selon ces règles strictes et réponds UNIQUEMENT avec le nom exact de la catégorie appropriée. En cas de doute, privilégie la catégorie de priorité plus élevée dans la cascade.`;
   }
 
   /**
@@ -335,14 +660,31 @@ JSON: {"category_name":"nom","use_existing":true/false,"confidence":0.0-1.0,"rea
   }
 
   /**
-   * Fallback en cas d'erreur
+   * Fallback intelligent en cas d'erreur
    */
   private getFallbackCategory(existingCategories: Category[]): ClassificationResult {
     if (existingCategories.length > 0) {
+      // Chercher une catégorie "Publicité" en priorité (la plus probable pour les erreurs)
+      const publiciteCategory = existingCategories.find(cat => 
+        cat.name.toLowerCase().includes('publicité') || 
+        cat.name.toLowerCase().includes('marketing')
+      );
+      
+      if (publiciteCategory) {
+        return {
+          category_id: publiciteCategory.id,
+          category_name: publiciteCategory.name,
+          confidence: 0.5,
+          auto_created: false,
+          reasoning: 'Classification de secours - assigné à Publicité (catégorie la plus probable)'
+        };
+      }
+
+      // Sinon chercher une catégorie générale
       const generalCategory = existingCategories.find(cat => 
-        cat.name.toLowerCase().includes('général') || 
+        cat.name.toLowerCase().includes('personnel') || 
         cat.name.toLowerCase().includes('autre')
-      ) || existingCategories[0];
+      ) || existingCategories[existingCategories.length - 1]; // Dernière catégorie au lieu de la première
 
       return {
         category_id: generalCategory.id,
@@ -569,6 +911,22 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
   }
 
   /**
+   * Vérifie si la question est liée aux emails
+   */
+  private isEmailRelatedQuery(query: string): boolean {
+    const emailKeywords = [
+      'email', 'mail', 'message', 'expéditeur', 'destinataire', 'objet',
+      'catégorie', 'classer', 'répondre', 'envoyé', 'reçu', 'important',
+      'lu', 'non lu', 'spam', 'indésirable', 'boîte', 'inbox',
+      'combien', 'quand', 'qui', 'statistique', 'résumé', 'classification',
+      'organiser', 'trier', 'chercher', 'recherche', 'analyse'
+    ];
+    
+    const queryLower = query.toLowerCase();
+    return emailKeywords.some(keyword => queryLower.includes(keyword));
+  }
+
+  /**
    * Assistant conversationnel avec accès complet et autonomie totale
    */
   async getAdvancedEmailResponse(
@@ -576,6 +934,14 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
     conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
   ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
     try {
+      // Vérification du scope - LIMITATION AUX EMAILS UNIQUEMENT
+      if (!this.isEmailRelatedQuery(query)) {
+        return {
+          content: '🎯 Je suis spécialisé dans la gestion d\'emails. Posez-moi une question sur vos emails, leur classification, vos statistiques ou l\'aide à la rédaction ! 📧',
+          type: 'info'
+        };
+      }
+
       // Vérifier si OpenAI est disponible
       if (!this.openai) {
         return {
