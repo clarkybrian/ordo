@@ -14,35 +14,29 @@ interface BeforeInstallPromptEvent extends Event {
 
 export const PWAInstallButton: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [showInstallButton, setShowInstallButton] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
 
   useEffect(() => {
     // Vérifier si l'app est déjà installée
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    const isInWebAppiOS = (window.navigator as any).standalone === true
+    const isInWebAppiOS = (window.navigator as { standalone?: boolean }).standalone === true
     
     if (isStandalone || isInWebAppiOS) {
       setIsInstalled(true)
       return
     }
 
-    // En développement, afficher toujours le bouton pour test
-    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    if (isDev) {
-      setShowInstallButton(true)
-    }
+    // En développement ET en production, le bouton sera toujours visible
+    // L'événement beforeinstallprompt sera écouté mais pas obligatoire
 
     // Écouter l'événement beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
-      setShowInstallButton(true)
     }
 
     // Écouter l'installation de l'app
     const handleAppInstalled = () => {
-      setShowInstallButton(false)
       setIsInstalled(true)
       setDeferredPrompt(null)
     }
@@ -68,7 +62,7 @@ export const PWAInstallButton: React.FC = () => {
         }
         
         setDeferredPrompt(null)
-        setShowInstallButton(false)
+        // Le bouton reste visible pour d'autres tentatives si nécessaire
       } catch (error) {
         console.error('Erreur lors de l\'installation PWA:', error)
       }
@@ -93,17 +87,23 @@ Pour installer Ordo sur votre appareil :
   }
 
   const handleDismiss = () => {
-    setShowInstallButton(false)
     // Cacher le bouton pendant 24h
     localStorage.setItem('pwa-install-dismissed', Date.now().toString())
+    // Force le composant à se cacher
+    setIsInstalled(true)
   }
 
   // Ne pas afficher si déjà installé
   if (isInstalled) return null
   
-  // En développement, toujours afficher (ignore les autres conditions)
-  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  if (!isDev && !showInstallButton && !deferredPrompt) return null
+  // Vérifier si récemment refusé
+  const dismissedTime = localStorage.getItem('pwa-install-dismissed')
+  if (dismissedTime) {
+    const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24)
+    if (daysSinceDismissed < 1) return null
+  }
+  
+  // Afficher le bouton dans tous les cas (sauf conditions ci-dessus)
 
   return (
     <motion.div
