@@ -98,16 +98,12 @@ Pour installer Ordo sur votre appareil :
     localStorage.setItem('pwa-install-dismissed', Date.now().toString())
   }
 
-  // Ne pas afficher si déjà installé ou si récemment refusé
+  // Ne pas afficher si déjà installé
   if (isInstalled) return null
   
-  const dismissedTime = localStorage.getItem('pwa-install-dismissed')
-  if (dismissedTime) {
-    const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24)
-    if (daysSinceDismissed < 1) return null
-  }
-
-  if (!showInstallButton && !deferredPrompt) return null
+  // En développement, toujours afficher (ignore les autres conditions)
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  if (!isDev && !showInstallButton && !deferredPrompt) return null
 
   return (
     <motion.div
