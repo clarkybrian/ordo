@@ -7,7 +7,6 @@ import { Card, CardContent } from '../components/ui/card'
 import { EmailCard } from '../components/EmailCard'
 import { EmailModal } from '../components/EmailModal'
 import { SyncProgressBar } from '../components/SyncProgressBar'
-import { PWAInstallButton } from '../components/PWAInstallButton'
 import { unsubscribeService } from '../services/unsubscribe'
 import EmailCompose from '../components/EmailCompose'
 import { emailSyncService, type SyncProgress } from '../services/emailSync'
@@ -652,7 +651,7 @@ export function Dashboard() {
                 {globalStats.totalEmails} emails • {globalStats.unreadEmails} non lus • {globalStats.importantEmails} importants
               </div>
               
-              {/* Ligne 2: Barre de recherche compacte avec bouton installation */}
+              {/* Ligne 2: Barre de recherche compacte */}
               <div className="flex space-x-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -663,10 +662,6 @@ export function Dashboard() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
                   />
-                </div>
-                {/* Bouton d'installation PWA sur mobile */}
-                <div className="flex-shrink-0">
-                  <PWAInstallButton />
                 </div>
               </div>
             </div>
@@ -704,9 +699,6 @@ export function Dashboard() {
                   <Edit3 className="h-4 w-4 mr-2" />
                   Composer
                 </Button>
-                
-                {/* Bouton d'installation PWA */}
-                <PWAInstallButton />
                 
                 <Button
                   onClick={handleManualSync}
