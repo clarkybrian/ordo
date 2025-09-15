@@ -15,10 +15,27 @@ import { Dashboard } from './pages/Dashboard'
 import { CategoriesPage } from './pages/CategoriesPage'
 import SentEmailsPage from './pages/SentEmailsPage'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
+import { handlePlanSelection } from './services/stripe'
 import type { User } from '@supabase/supabase-js'
 
 // Pages temporaires pour la démo
 function SubscriptionPage() {
+  const [isLoading, setIsLoading] = useState<string | null>(null)
+
+  const handlePlanClick = async (planName: string) => {
+    console.log('🔄 Clic sur le plan (SubscriptionPage):', planName)
+    try {
+      setIsLoading(planName)
+      console.log('⏳ État de chargement activé pour:', planName)
+      await handlePlanSelection(planName)
+      console.log('✅ Sélection du plan terminée pour:', planName)
+    } catch (error) {
+      console.error('❌ Erreur lors de la sélection du plan:', error)
+    } finally {
+      setIsLoading(null)
+      console.log('🔚 État de chargement désactivé')
+    }
+  }
   const plans = [
     {
       name: "Gratuit",
@@ -145,15 +162,24 @@ function SubscriptionPage() {
             </ul>
 
             <button
+              onClick={() => handlePlanClick(plan.name)}
+              disabled={isLoading === plan.name}
               className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 mt-auto ${
                 plan.name === 'Gratuit'
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
                   : plan.popular
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg'
-                  : 'bg-purple-600 text-white hover:bg-purple-700'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-blue-600 disabled:hover:to-purple-600'
+                  : 'bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-purple-600'
               }`}
             >
-              {plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'}
+              {isLoading === plan.name ? (
+                <span className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                  Redirection...
+                </span>
+              ) : (
+                plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'
+              )}
             </button>
           </div>
         ))}
