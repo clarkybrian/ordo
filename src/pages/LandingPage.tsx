@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Mail, ArrowRight, Star, Shield, Zap, Users, Check, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -617,8 +617,8 @@ export function LandingPage() {
               © 2025 Orton. Conçu avec ❤️ pour simplifier votre vie.
             </div>
             <div className="flex space-x-6 text-gray-400">
-              <a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a>
-              <a href="#" className="hover:text-white transition-colors">Conditions d'utilisation</a>
+              <Link to="/privacy-policy" className="hover:text-white transition-colors">Politique de confidentialité</Link>
+              <Link to="/terms-of-service" className="hover:text-white transition-colors">Conditions d'utilisation</Link>
             </div>
           </div>
         </div>

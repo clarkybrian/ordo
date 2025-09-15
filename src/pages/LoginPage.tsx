@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-
+import { Link } from 'react-router-dom'
 import { Mail, Shield, Zap, Users, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -215,9 +215,9 @@ export function LoginPage() {
               <div className="text-center mb-6">
                 <div className="text-sm text-gray-500 mb-4">
                   En vous connectant, vous acceptez nos{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-700">conditions d'utilisation</a>
+                  <Link to="/terms-of-service" className="text-blue-600 hover:text-blue-700">conditions d'utilisation</Link>
                   {' '}et notre{' '}
-                  <a href="#" className="text-blue-600 hover:text-blue-700">politique de confidentialité</a>
+                  <Link to="/privacy-policy" className="text-blue-600 hover:text-blue-700">politique de confidentialité</Link>
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { Mail, Shield, Zap, ArrowRight } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
@@ -119,7 +120,10 @@ export function Onboarding({ onGoogleAuth }: OnboardingProps) {
           </Button>
           
           <p className="text-xs text-gray-500 text-center mt-4">
-            En continuant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité
+            En continuant, vous acceptez nos{' '}
+            <Link to="/terms-of-service" className="text-blue-600 hover:text-blue-700">conditions d'utilisation</Link>
+            {' '}et notre{' '}
+            <Link to="/privacy-policy" className="text-blue-600 hover:text-blue-700">politique de confidentialité</Link>
           </p>
         </motion.div>
       </motion.div>

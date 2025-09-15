@@ -7,6 +7,8 @@ import { FeaturesPage } from './pages/FeaturesPage'
 import { PricingPage } from './pages/PricingPage'
 import { AboutPage } from './pages/AboutPage'
 import { LoginPage } from './pages/LoginPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
+import { TermsOfServicePage } from './pages/TermsOfServicePage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
@@ -264,6 +266,9 @@ function App() {
               <Route path="about" element={<AboutPage />} />
               <Route path="login" element={<LoginPage />} />
             </Route>
+            {/* Routes sans layout pour les pages légales */}
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-of-service" element={<TermsOfServicePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}
