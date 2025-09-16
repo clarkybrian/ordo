@@ -20,17 +20,17 @@ const PLAN_CONFIGS: Record<string, PlanConfig> = {
   free: {
     questionsLimit: 3,
     aiModel: 'gpt-3.5-turbo',
-    features: ['Classification basique', '3 questions/mois', 'Support email']
+    features: ['Classification basique', '3 questions par jour', 'Support email']
   },
   pro: {
     questionsLimit: 20,
     aiModel: 'gpt-4o-mini',
-    features: ['Classification avancée', '20 questions/mois', 'Support prioritaire']
+    features: ['Classification avancée', '20 questions par jour', 'Support prioritaire']
   },
   premium: {
-    questionsLimit: -1, // Illimité
+    questionsLimit: 55, // 55 questions par jour
     aiModel: 'gpt-4',
-    features: ['Tout inclus', 'Questions illimitées', 'Support 24/7', 'Fonctionnalités premium']
+    features: ['Tout inclus', '55 questions par jour', 'Support 24/7', 'Fonctionnalités premium']
   }
 };
 
@@ -40,53 +40,51 @@ class SubscriptionService {
    */
   async getUserPlan(userId: string): Promise<UserPlan> {
     try {
-      // Récupérer l'abonnement actuel
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('subscription_type, status, current_period_end')
-        .eq('user_id', userId)
+      // Récupérer le profil avec quota et dernière réinitialisation
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('subscription_type, emails_quota_used, last_quota_reset')
+        .eq('id', userId)
         .single();
 
-      // Récupérer l'usage des questions ce mois-ci
-      const currentMonth = new Date().toISOString().slice(0, 7); // "2025-09"
-      const { data: usage } = await supabase
-        .from('monthly_question_usage')
-        .select('questions_used')
-        .eq('user_id', userId)
-        .eq('month', currentMonth)
-        .single();
-
-      let planType: 'free' | 'pro' | 'premium' = 'free';
-      let planStatus: 'active' | 'expired' | 'past_due' = 'active';
-
-      // Déterminer le plan et statut
-      if (subscription && subscription.status === 'active') {
-        const periodEnd = new Date(subscription.current_period_end);
-        const now = new Date();
-
-        if (now <= periodEnd) {
-          planType = subscription.subscription_type as 'free' | 'pro' | 'premium';
-          planStatus = 'active';
-        } else {
-          planStatus = 'expired';
-        }
-      } else if (subscription && subscription.status === 'past_due') {
-        planType = subscription.subscription_type as 'free' | 'pro' | 'premium';
-        planStatus = 'past_due';
+      if (error) throw error;
+      if (!profile) {
+        throw new Error('Profil utilisateur non trouvé');
       }
 
+      const planType = profile.subscription_type as 'free' | 'pro' | 'premium';
       const config = PLAN_CONFIGS[planType];
-      const questionsUsed = usage?.questions_used || 0;
-      const questionsRemaining = config.questionsLimit === -1 ? -1 : Math.max(0, config.questionsLimit - questionsUsed);
+      
+      // Vérifier si on doit réinitialiser le quota journalier
+      const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+      const lastReset = profile.last_quota_reset;
+      const isNewDay = !lastReset || lastReset !== today;
+      
+      let questionsUsed = profile.emails_quota_used || 0;
+      
+      // Réinitialiser le quota si c'est un nouveau jour
+      if (isNewDay && questionsUsed > 0) {
+        questionsUsed = 0;
+        
+        // Mettre à jour la base de données
+        await supabase
+          .from('profiles')
+          .update({ 
+            emails_quota_used: 0,
+            last_quota_reset: today
+          })
+          .eq('id', userId);
+      }
+      
+      const questionsRemaining = Math.max(0, config.questionsLimit - questionsUsed);
 
       return {
         type: planType,
-        status: planStatus,
+        status: 'active',
         questionsLimit: config.questionsLimit,
         questionsUsed,
         questionsRemaining,
-        aiModel: config.aiModel,
-        periodEnd: subscription?.current_period_end ? new Date(subscription.current_period_end) : undefined
+        aiModel: config.aiModel
       };
 
     } catch (error) {
@@ -108,18 +106,6 @@ class SubscriptionService {
    */
   async canAskQuestion(userId: string): Promise<{ canAsk: boolean; plan: UserPlan }> {
     const plan = await this.getUserPlan(userId);
-    
-    // Premium = illimité
-    if (plan.type === 'premium') {
-      return { canAsk: true, plan };
-    }
-
-    // Plan expiré = plan gratuit
-    if (plan.status !== 'active') {
-      const freePlan = await this.getUserPlan(userId); // Recalcule en mode free
-      return { canAsk: freePlan.questionsRemaining > 0, plan: freePlan };
-    }
-
     return { canAsk: plan.questionsRemaining > 0, plan };
   }
 
@@ -127,27 +113,28 @@ class SubscriptionService {
    * Enregistre une question posée
    */
   async recordQuestionUsed(userId: string): Promise<void> {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    
     try {
-      // Tenter d'incrementer
-      const { error } = await supabase.rpc('increment_monthly_questions', {
-        p_user_id: userId,
-        p_month: currentMonth
+      // Utiliser la fonction SQL optimisée
+      const { error } = await supabase.rpc('increment_quota_used', {
+        user_id: userId
       });
 
       if (error) {
-        // Si la fonction n'existe pas, faire un upsert manuel
-        await supabase
-          .from('monthly_question_usage')
-          .upsert({
-            user_id: userId,
-            month: currentMonth,
-            questions_used: 1
-          }, {
-            onConflict: 'user_id,month',
-            ignoreDuplicates: false
-          });
+        console.error('❌ Erreur fonction increment_quota_used:', error);
+        
+        // Fallback: mise à jour manuelle
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('emails_quota_used')
+          .eq('id', userId)
+          .single();
+
+        if (profile) {
+          await supabase
+            .from('profiles')
+            .update({ emails_quota_used: (profile.emails_quota_used || 0) + 1 })
+            .eq('id', userId);
+        }
       }
     } catch (error) {
       console.error('❌ Erreur enregistrement question:', error);
@@ -165,11 +152,7 @@ class SubscriptionService {
    * Formate l'affichage des questions restantes
    */
   formatQuestionsRemaining(plan: UserPlan): string {
-    if (plan.type === 'premium') {
-      return '∞ Questions illimitées';
-    }
-    
-    return `${plan.questionsRemaining}/${plan.questionsLimit} questions restantes`;
+    return `${plan.questionsRemaining}/${plan.questionsLimit} questions restantes aujourd'hui`;
   }
 }
 

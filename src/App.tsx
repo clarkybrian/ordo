@@ -47,7 +47,7 @@ function SubscriptionPage() {
       features: [
         "📧 10 derniers emails seulement",
         "🔄 Synchronisation manuelle uniquement",
-        "🤖 2 questions IA par jour",
+        "🤖 1 question IA par mois",
         "📁 3 catégories maximum"
       ],
       notIncluded: [
@@ -70,7 +70,7 @@ function SubscriptionPage() {
       description: "Pour les professionnels",
       features: [
         "📧 Synchronisation quotidienne automatique",
-        "🤖 20 questions IA par jour",
+        "🤖 3 questions IA par mois",
         "📁 Catégories illimitées",
         "📊 Analyses et statistiques",
         "🔔 Notifications en temps réel",

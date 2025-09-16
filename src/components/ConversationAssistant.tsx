@@ -19,9 +19,12 @@ interface ChatMessage {
 
 interface UserPlan {
   type: 'free' | 'pro' | 'premium';
-  questionsLimit: number | null;
+  status: 'active' | 'expired' | 'past_due';
+  questionsLimit: number;
   questionsUsed: number;
+  questionsRemaining: number;
   aiModel: string;
+  periodEnd?: Date;
 }
 
 interface ConversationAssistantProps {
@@ -46,8 +49,10 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
   const [isLoading, setIsLoading] = useState(false);
   const [userPlan, setUserPlan] = useState<UserPlan>({
     type: 'free',
+    status: 'active',
     questionsLimit: 3,
     questionsUsed: 0,
+    questionsRemaining: 3,
     aiModel: 'gpt-3.5-turbo'
   });
 
@@ -86,13 +91,13 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const canAsk = await subscriptionService.canAskQuestion(user.id);
+    const { canAsk, plan } = await subscriptionService.canAskQuestion(user.id);
     if (!canAsk) {
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
-        content: userPlan.type === 'free' 
-          ? '❌ Vous avez atteint votre limite de 3 questions par mois. Passez au plan Pro pour poser jusqu\'à 20 questions !'
-          : '❌ Vous avez atteint votre limite mensuelle. Contactez-nous pour en savoir plus.',
+        content: plan.type === 'free' 
+          ? '❌ Vous avez atteint votre limite de 3 questions par jour. Passez au plan Pro pour poser jusqu\'à 20 questions !'
+          : '❌ Vous avez atteint votre limite journalière. Contactez-nous pour en savoir plus.',
         isUser: false,
         timestamp: new Date(),
         type: 'error'
@@ -141,8 +146,8 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
         const errorMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           content: userPlan.type === 'free' 
-            ? '⚠️ Vous avez atteint votre limite de 3 questions par mois !'
-            : '⚠️ Vous avez atteint votre limite mensuelle !',
+            ? '⚠️ Vous avez atteint votre limite de 3 questions par jour !'
+            : '⚠️ Vous avez atteint votre limite journalière !',
           isUser: false,
           timestamp: new Date(),
           type: 'error'
@@ -274,26 +279,21 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
         {/* Compteur de questions */}
         <div className="mt-3 bg-white/10 rounded-lg p-2">
           <div className="flex items-center justify-between text-xs">
-            <span>Questions ce mois</span>
+            <span>Questions aujourd'hui</span>
             <span className="font-semibold">
-              {userPlan.questionsUsed}/{userPlan.questionsLimit || '∞'}
+              {userPlan.questionsUsed}/{userPlan.questionsLimit}
             </span>
           </div>
           <div className="mt-1 bg-white/20 rounded-full h-1.5">
             <div 
               className="bg-white rounded-full h-1.5 transition-all duration-300"
               style={{ 
-                width: userPlan.questionsLimit 
-                  ? `${Math.min((userPlan.questionsUsed / userPlan.questionsLimit) * 100, 100)}%` 
-                  : '100%'
+                width: `${Math.min((userPlan.questionsUsed / userPlan.questionsLimit) * 100, 100)}%`
               }}
             />
           </div>
           <div className="mt-1 text-xs text-blue-100">
-            {userPlan.questionsLimit 
-              ? `${Math.max(0, userPlan.questionsLimit - userPlan.questionsUsed)} questions restantes`
-              : 'Questions illimitées'
-            }
+            {userPlan.questionsRemaining} questions restantes aujourd'hui
           </div>
           <div className="mt-1 text-xs text-blue-200 opacity-75">
             Plan {userPlan.type === 'free' ? 'Gratuit' : userPlan.type === 'pro' ? 'Pro' : 'Premium'} • 
@@ -412,11 +412,11 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={
-                userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit
-                  ? "Limite mensuelle atteinte"
+                userPlan.questionsRemaining <= 0
+                  ? "Limite journalière atteinte"
                   : "Posez-moi une question sur vos emails..."
               }
-              disabled={isLoading || (userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit)}
+              disabled={isLoading || userPlan.questionsRemaining <= 0}
               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-24 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
               rows={1}
               style={{ minHeight: '36px' }}
@@ -424,20 +424,20 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
           </div>
           <Button
             onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading || (userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit)}
+            disabled={!inputValue.trim() || isLoading || userPlan.questionsRemaining <= 0}
             className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         
-        {userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit && (
+        {userPlan.questionsRemaining <= 0 && (
           <div className="mt-1.5 text-center">
             <button
               onClick={handleUpgrade}
               className="text-xs text-red-600 hover:text-red-800 underline hover:no-underline transition-all duration-200 font-medium"
             >
-              Limite mensuelle atteinte. Passez à un plan supérieur !
+              Limite journalière atteinte. Passez à un plan supérieur !
             </button>
           </div>
         )}
