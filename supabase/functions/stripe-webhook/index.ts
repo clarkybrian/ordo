@@ -4,7 +4,8 @@ import Stripe from 'https://esm.sh/stripe@14.11.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 // Configuration Stripe
@@ -20,8 +21,17 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Vérifier que c'est bien une requête POST de Stripe
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { 
+      status: 405, 
+      headers: corsHeaders 
+    })
+  }
+
   try {
     console.log('🔔 Webhook reçu de Stripe')
+    console.log('📋 Headers reçus:', Object.fromEntries(req.headers.entries()))
     
     // Initialiser Supabase avec les permissions service role pour modifier la BDD
     const supabaseClient = createClient(
@@ -42,7 +52,10 @@ serve(async (req) => {
 
     if (!signature) {
       console.error('❌ Signature manquante')
-      throw new Error('Signature manquante')
+      return new Response(
+        JSON.stringify({ error: 'Signature manquante' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Vérifier la signature du webhook

@@ -16,14 +16,44 @@ import { CategoriesPage } from './pages/CategoriesPage'
 import SentEmailsPage from './pages/SentEmailsPage'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import { handlePlanSelection } from './services/stripe'
+import { subscriptionService } from './services/subscription'
 import type { User } from '@supabase/supabase-js'
+import type { UserPlan } from './services/subscription'
 
 // Pages temporaires pour la démo
-function SubscriptionPage() {
+function SubscriptionPage({ user }: { user: User }) {
   const [isLoading, setIsLoading] = useState<string | null>(null)
+  const [currentPlan, setCurrentPlan] = useState<UserPlan | null>(null)
+  const [planLoading, setPlanLoading] = useState(true)
+
+  // Charger le plan actuel de l'utilisateur
+  useEffect(() => {
+    const loadUserPlan = async () => {
+      if (user?.id) {
+        try {
+          const plan = await subscriptionService.getUserPlan(user.id)
+          setCurrentPlan(plan)
+        } catch (error) {
+          console.error('❌ Erreur lors du chargement du plan:', error)
+        } finally {
+          setPlanLoading(false)
+        }
+      }
+    }
+    
+    loadUserPlan()
+  }, [user?.id])
 
   const handlePlanClick = async (planName: string) => {
     console.log('🔄 Clic sur le plan (SubscriptionPage):', planName)
+    
+    // Si c'est le plan gratuit, rediriger vers le dashboard
+    if (planName === 'Gratuit') {
+      console.log('🆓 Plan gratuit sélectionné - redirection vers dashboard')
+      window.location.href = '/dashboard'
+      return
+    }
+    
     try {
       setIsLoading(planName)
       console.log('⏳ État de chargement activé pour:', planName)
@@ -36,6 +66,50 @@ function SubscriptionPage() {
       console.log('🔚 État de chargement désactivé')
     }
   }
+
+  // Fonction pour déterminer si c'est le plan actuel
+  const isCurrentPlan = (planName: string): boolean => {
+    if (!currentPlan) return false
+    return currentPlan.type === planName.toLowerCase()
+  }
+
+  // Fonction pour déterminer si un bouton doit être grisé/désactivé
+  const isPlanDisabled = (planName: string): boolean => {
+    if (!currentPlan) return false
+    
+    const currentPlanType = currentPlan.type
+    const targetPlan = planName.toLowerCase()
+    
+    // Si on est sur le plan pro, désactiver le bouton pro
+    if (currentPlanType === 'pro' && targetPlan === 'pro') {
+      return true
+    }
+    
+    // Si on est sur le plan premium, désactiver pro et premium
+    if (currentPlanType === 'premium' && (targetPlan === 'pro' || targetPlan === 'premium')) {
+      return true
+    }
+    
+    return false
+  }
+
+  // Fonction pour obtenir le texte du bouton selon l'état
+  const getButtonText = (planName: string): string => {
+    if (isLoading === planName) {
+      return 'Redirection...'
+    }
+    
+    if (isPlanDisabled(planName)) {
+      return currentPlan?.type === planName.toLowerCase() ? 'Plan actuel' : 'Non disponible'
+    }
+    
+    if (planName === 'Gratuit') {
+      return 'Aller au dashboard'
+    }
+    
+    return 'Choisir ce plan'
+  }
+
   const plans = [
     {
       name: "Gratuit",
@@ -117,6 +191,20 @@ function SubscriptionPage() {
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
           Orton grandit avec vous. Commencez gratuitement et évoluez selon vos besoins de gestion email.
         </p>
+        
+        {/* Affichage du plan actuel si disponible */}
+        {currentPlan && !planLoading && (
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-md mx-auto">
+            <p className="text-blue-800 font-medium">
+              📋 Plan actuel : <span className="capitalize">{currentPlan.type}</span>
+              {currentPlan.type !== 'free' && (
+                <span className="text-sm text-blue-600 ml-2">
+                  ({currentPlan.questionsRemaining}/{currentPlan.questionsLimit} questions restantes)
+                </span>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -129,10 +217,18 @@ function SubscriptionPage() {
                 : 'border-gray-200 shadow-lg'
             } bg-white`}
           >
-            {plan.popular && (
+            {plan.popular && !isCurrentPlan(plan.name) && (
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap">
                   ⭐ Le plus populaire
+                </span>
+              </div>
+            )}
+
+            {isCurrentPlan(plan.name) && (
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <span className="bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap">
+                  ✅ Votre plan actuel
                 </span>
               </div>
             )}
@@ -163,9 +259,11 @@ function SubscriptionPage() {
 
             <button
               onClick={() => handlePlanClick(plan.name)}
-              disabled={isLoading === plan.name}
+              disabled={isLoading === plan.name || isPlanDisabled(plan.name)}
               className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 mt-auto ${
-                plan.name === 'Gratuit'
+                isPlanDisabled(plan.name)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                  : plan.name === 'Gratuit'
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
                   : plan.popular
                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-blue-600 disabled:hover:to-purple-600'
@@ -178,7 +276,7 @@ function SubscriptionPage() {
                   Redirection...
                 </span>
               ) : (
-                plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'
+                getButtonText(plan.name)
               )}
             </button>
           </div>
@@ -275,7 +373,7 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="sent-emails" element={<SentEmailsPage />} />
               <Route path="categories" element={<CategoriesPage />} />
-              <Route path="subscription" element={<SubscriptionPage />} />
+              <Route path="subscription" element={<SubscriptionPage user={user} />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
