@@ -911,19 +911,44 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
   }
 
   /**
-   * Vérifie si la question est liée aux emails
+   * Vérifie si c'est une question liée aux emails OU une interaction naturelle autorisée
    */
-  private isEmailRelatedQuery(query: string): boolean {
+  private isEmailRelatedOrNaturalQuery(query: string): boolean {
+    const queryLower = query.toLowerCase().trim();
+    
+    // Interactions naturelles autorisées (salutations, politesse)
+    const naturalInteractions = [
+      'salut', 'bonjour', 'bonsoir', 'hello', 'hi', 'coucou',
+      'comment', 'ça va', 'tu vas', 'vous allez', 'merci', 'merci beaucoup',
+      'au revoir', 'à bientôt', 'bye', 'ok', 'très bien', 'd\'accord'
+    ];
+    
+    // Mots-clés emails
     const emailKeywords = [
       'email', 'mail', 'message', 'expéditeur', 'destinataire', 'objet',
       'catégorie', 'classer', 'répondre', 'envoyé', 'reçu', 'important',
       'lu', 'non lu', 'spam', 'indésirable', 'boîte', 'inbox',
       'combien', 'quand', 'qui', 'statistique', 'résumé', 'classification',
-      'organiser', 'trier', 'chercher', 'recherche', 'analyse'
+      'organiser', 'trier', 'chercher', 'recherche', 'analyse', 'nouveau',
+      'aujourd\'hui', 'hier', 'cette semaine', 'urgent', 'priorité'
     ];
     
-    const queryLower = query.toLowerCase();
-    return emailKeywords.some(keyword => queryLower.includes(keyword));
+    // Permettre les interactions naturelles
+    if (naturalInteractions.some(word => queryLower.includes(word))) {
+      return true;
+    }
+    
+    // Permettre les questions sur les emails
+    if (emailKeywords.some(keyword => queryLower.includes(keyword))) {
+      return true;
+    }
+    
+    // Questions courtes probablement contextuelles
+    if (queryLower.length < 20) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -934,10 +959,10 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
     conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
   ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
     try {
-      // Vérification du scope - LIMITATION AUX EMAILS UNIQUEMENT
-      if (!this.isEmailRelatedQuery(query)) {
+      // Vérification intelligente du scope - permettre les interactions naturelles
+      if (!this.isEmailRelatedOrNaturalQuery(query)) {
         return {
-          content: '🎯 Je suis spécialisé dans la gestion d\'emails. Posez-moi une question sur vos emails, leur classification, vos statistiques ou l\'aide à la rédaction ! 📧',
+          content: '😊 Je peux vous aider avec vos emails ! Que souhaitez-vous savoir ? 📧',
           type: 'info'
         };
       }
@@ -1063,72 +1088,83 @@ Données: ${categories.length} catégories (${usedCategories.length} utilisées)
   }
 
   /**
-   * Prompt système pour assistant avec émojis et accès total aux emails
+   * Prompt système pour assistant intelligent et conversationnel
    */
   private buildAutonomousSystemPrompt(): string {
-    return `Tu es un assistant email intelligent pour l'application Ordo avec un ACCÈS COMPLET à tous les emails de l'utilisateur. 
+    return `Tu es ORTON, l'assistant email intelligent d'Ordo. Tu es SMART, CONCIS et CONVERSATIONNEL.
 
-🎯 TES CAPACITÉS COMPLÈTES:
-- Analyser et résumer tous les emails en détail
-- Aider à rédiger des réponses personnalisées  
-- Rechercher des informations spécifiques dans les emails
-- Donner des statistiques détaillées sur les emails
-- Proposer des exemples de réponses (quand demandé)
-- Identifier les emails importants et urgents
+🧠 TON INTELLIGENCE:
+- ANALYSE les emails au lieu de tout lister
+- FILTRE et identifie ce qui est vraiment important par le CONTENU
+- Sois SÉLECTIF : max 3-5 emails importants, pas 20
+- RÉSUME intelligemment sans bavardage inutile
 
-📧 ACCÈS TOTAL AUX DONNÉES:
-- Tu connais le contenu intégral de chaque email
-- Tu peux analyser les expéditeurs, dates, sujets, corps
-- Tu peux croiser les informations entre emails
-- Tu as accès aux catégories, labels et métadonnées
+💬 TON CARACTÈRE:
+- Réponds aux SALUTATIONS naturellement ("Salut !" → "Salut ! 😊")
+- Sois CONVERSATIONNEL et sympa
+- Utilise des émojis pour embellir tes réponses 
+- REFUSE poliment les demandes non-email ("Je suis votre assistant email 📧")
 
-💬 TON STYLE DE RÉPONSE:
-- Réponds de manière naturelle et conversationnelle
-- Utilise BEAUCOUP d'emojis pour illustrer tes réponses (📧 📝 📊 ⭐ 🔍 💡 🎯 📅 👥 ✅ ❌ 🚀 💯 📈 📋 🔥 ⚡ 🎉 etc.)
-- Sois précis mais expressif avec les émojis
-- Structure tes réponses avec des emojis pour chaque section
-- Utilise des emojis spécifiques selon le contexte :
-  • 📧 pour les emails
-  • 📝 pour la rédaction
-  • 📊 pour les statistiques  
-  • ⭐ pour l'important
-  • 🔍 pour les recherches
-  • 💡 pour les conseils
-  • 🎯 pour les priorités
-  • 📅 pour les dates
-  • 👥 pour les expéditeurs
-  • ✅ pour les actions accomplies
-  • 🚀 pour les suggestions d'amélioration
+📧 TON EXPERTISE:
+- Accès TOTAL à tous les emails de l'utilisateur
+- Analyse le CONTENU pour déterminer l'importance (pas juste les flags)
+- Un email est important par son CONTENU : travail urgent, rendez-vous, décisions, opportunités
+- PAS les newsletters, notifications automatiques, publicités
 
-⚖️ ÉQUILIBRE:
-- Minimum 200 caractères, maximum 1000 caractères
-- Réponds précisément à la question avec des émojis expressifs
-- Pour un salut simple, réponds avec des émojis sympas
-- Adapte la longueur selon la complexité de la demande
+✂️ TON STYLE - CONCIS ET SMART:
+- ÉVITE le bavardage et les listes interminables
+- Exemple: "📧 3 emails importants aujourd'hui:" puis 3 résumés courts
+- Exemple: "� 15 emails reçus, 3 nécessitent votre attention"
+- Max 2-3 phrases par email important
+- STRUCTURE avec émojis: 📧 📊 ⭐ 🎯 � 👥 ✅
 
-🚀 AUTONOMIE TOTALE:
-- Accès complet aux données emails
-- Traite directement les demandes
-- Utilise toutes les informations disponibles`;
+🎯 RÈGLES STRICTES:
+- Questions "emails importants" → ANALYSE et sélectionne intelligemment 3-5 max
+- Questions statistiques → Chiffres + explication légère
+- Salutations → Réponds naturellement avec émojis
+- Questions hors-email → Redirection polie vers tes compétences
+- JAMAIS de récapitulatif des 20-50 emails
+- Sois INTELLIGENT et ADAPTATIF selon le contexte
+
+Tu es un assistant SMART qui comprend l'intention derrière chaque question.`;
   }
 
   /**
    * Contenu utilisateur avec contexte complet des emails
    */
   private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[]): string {
-    const recentEmails = emails.slice(0, 15); // Plus d'emails pour l'analyse
     const unreadCount = emails.filter(e => !e.is_read).length;
     const importantCount = emails.filter(e => e.is_important).length;
     
-    // Pour les salutations simples
-    if (query.toLowerCase().includes('salut') || query.toLowerCase().includes('bonjour') || query.toLowerCase().includes('hello')) {
+    // Pour les salutations et questions conversationnelles simples - CONTEXTE MINIMAL
+    const conversationalQueries = [
+      'salut', 'bonjour', 'hello', 'bonsoir', 'coucou',
+      'comment', 'ça va', 'tu vas', 'vous allez', 
+      'merci', 'merci beaucoup', 'ok', 'très bien', 'd\'accord',
+      'au revoir', 'à bientôt', 'bye'
+    ];
+    
+    const queryLower = query.toLowerCase();
+    const isConversational = conversationalQueries.some(phrase => queryLower.includes(phrase));
+    
+    if (isConversational && queryLower.length < 50) {
       return `Question: "${query}"
 
-📊 Contexte rapide: Tu as accès à ${emails.length} emails (${unreadCount} non lus, ${importantCount} importants)
-Réponds avec des émojis sympas !`;
+📊 Contexte minimal: ${emails.length} emails (${unreadCount} non lus)
+Réponds simplement et naturellement avec des émojis ! Pas de détails techniques.`;
     }
 
-    // Statistiques par catégorie
+    // Pour les vraies questions sur les emails - CONTEXTE COMPLET
+    const isImportanceQuery = query.toLowerCase().includes('important') || 
+                             query.toLowerCase().includes('priorité') ||
+                             query.toLowerCase().includes('urgent');
+    
+    let emailsToShow: (EmailWithCategory & { intelligentImportanceScore?: number })[] = emails.slice(0, 15);
+    
+    if (isImportanceQuery) {
+      emailsToShow = this.analyzeEmailImportance(emails).slice(0, 10);
+    }
+
     const categoryStats = categories.map(cat => {
       const emailsInCat = emails.filter(e => e.category?.name === cat.name);
       return `${cat.name}: ${emailsInCat.length}`;
@@ -1142,20 +1178,82 @@ Réponds avec des émojis sympas !`;
 - Importants: ${importantCount} emails
 - Catégories: ${categories.length}
 
-📧 EMAILS RÉCENTS (${recentEmails.length}):
-${recentEmails.map((email, i) => {
+📧 EMAILS À ANALYSER (${emailsToShow.length}):
+${emailsToShow.map((email, i) => {
   const preview = email.body_text || email.snippet || '';
+  const score = email.intelligentImportanceScore;
   return `${i+1}. 📧 "${email.subject || 'Sans sujet'}"
    👤 ${email.sender_name || email.sender_email}
    📅 ${new Date(email.received_at).toLocaleDateString('fr-FR')}
    📂 ${email.category?.name || 'Non classé'}
-   ${email.is_important ? '⭐ Important' : ''}${!email.is_read ? ' 🔵 Non lu' : ' ✅ Lu'}
+   ${email.is_important ? '⭐ Marqué important' : ''}${!email.is_read ? ' 🔵 Non lu' : ' ✅ Lu'}
+   ${score ? `🎯 Score: ${score}` : ''}
    ${preview ? `💬 "${preview.substring(0, 100)}..."` : ''}`;
 }).join('\n\n')}
 
 🏷️ CATÉGORIES: ${categoryStats.join(' | ')}
 
 🎯 Utilise toutes ces informations pour répondre avec des émojis expressifs !`;
+  }
+
+  /**
+   * Analyse intelligemment l'importance des emails par leur contenu
+   */
+  private analyzeEmailImportance(emails: EmailWithCategory[]): (EmailWithCategory & { intelligentImportanceScore: number })[] {
+    return emails
+      .map(email => ({
+        ...email,
+        intelligentImportanceScore: this.calculateImportanceScore(email)
+      }))
+      .sort((a, b) => b.intelligentImportanceScore - a.intelligentImportanceScore);
+  }
+
+  /**
+   * Calcule le score d'importance d'un email basé sur son contenu
+   */
+  private calculateImportanceScore(email: EmailWithCategory): number {
+    let score = 0;
+    const content = `${email.subject || ''} ${email.body_text || email.snippet || ''}`.toLowerCase();
+    const sender = email.sender_email?.toLowerCase() || '';
+
+    // Mots-clés urgents/importants
+    const urgentKeywords = [
+      'urgent', 'important', 'asap', 'immédiatement', 'rapidement', 
+      'deadline', 'échéance', 'réunion', 'meeting', 'rendez-vous',
+      'contrat', 'signature', 'approbation', 'validation', 'décision',
+      'facture', 'paiement', 'commande', 'livraison', 'problème'
+    ];
+
+    urgentKeywords.forEach(keyword => {
+      if (content.includes(keyword)) score += 3;
+    });
+
+    // Expéditeurs importants (domaines professionnels)
+    if (sender.includes('@gmail.com') || sender.includes('@yahoo.com')) {
+      score += 1; // Personnel
+    } else if (sender.includes('@outlook.com') || sender.includes('@hotmail.com')) {
+      score += 1;
+    } else {
+      score += 2; // Domaines professionnels
+    }
+
+    // Questions directes
+    if (content.includes('?')) score += 2;
+    
+    // Longueur du contenu (emails courts souvent plus urgents)
+    if (content.length < 500) score += 1;
+
+    // Pénalités pour emails automatiques
+    const automaticKeywords = [
+      'newsletter', 'unsubscribe', 'notification', 'no-reply', 
+      'noreply', 'automatic', 'automatique', 'promo', 'publicité'
+    ];
+    
+    automaticKeywords.forEach(keyword => {
+      if (content.includes(keyword) || sender.includes(keyword)) score -= 5;
+    });
+
+    return Math.max(0, score); // Score minimum 0
   }
 }
 

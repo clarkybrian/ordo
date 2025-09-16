@@ -21,7 +21,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '🧠 Salut ! Je suis votre assistant email intelligent Orton.\n\n✨ Je peux analyser le contenu de vos emails et vous donner des résumés détaillés !\n\n📝 **Questions détaillées** : 4 par période de 3h\n⚡ **Questions rapides** : 10 par période de 3h\n\nQue souhaitez-vous savoir sur vos emails ?',
+      content: '👋 Salut ! Je suis Orton, votre assistant email intelligent !\n\n🧠 Je connais tous vos emails et je suis là pour vous aider intelligemment :\n• 📊 Résumés des emails importants (pas tout !)\n• � Recherches dans vos messages  \n• 📧 Aide à la rédaction de réponses\n\n💬 N\'hésitez pas à me parler naturellement ! Que puis-je faire pour vous ? 😊',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
