@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, User, Bot, Minimize2 } from 'lucide-react';
+import { Send, Sparkles, User, Bot, Minimize2, Crown, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { openaiService } from '../services/openai';
+import { subscriptionService } from '../services/subscription';
 import { Button } from './ui/button';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useWindowSize } from '../hooks/useWindowSize';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatMessage {
   id: string;
@@ -15,10 +17,11 @@ interface ChatMessage {
   type?: 'info' | 'data' | 'error' | 'success';
 }
 
-interface AssistantUsage {
-  question_count: number;
-  remaining_questions: number;
-  last_reset_date: string;
+interface UserPlan {
+  type: 'free' | 'pro' | 'premium';
+  questionsLimit: number | null;
+  questionsUsed: number;
+  aiModel: string;
 }
 
 interface ConversationAssistantProps {
@@ -28,6 +31,8 @@ interface ConversationAssistantProps {
 
 export default function ConversationAssistant({ isMinimized, onToggleMinimize }: ConversationAssistantProps) {
   const { isMobile } = useWindowSize();
+  const navigate = useNavigate();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -39,17 +44,18 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [usage, setUsage] = useState<AssistantUsage>({
-    question_count: 0,
-    remaining_questions: 4,
-    last_reset_date: new Date().toISOString().split('T')[0]
+  const [userPlan, setUserPlan] = useState<UserPlan>({
+    type: 'free',
+    questionsLimit: 3,
+    questionsUsed: 0,
+    aiModel: 'gpt-3.5-turbo'
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    loadUsage();
+    loadUserPlan();
     scrollToBottom();
   }, []);
 
@@ -61,61 +67,40 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadUsage = async () => {
+  const loadUserPlan = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      const { data, error } = await supabase
-        .rpc('get_or_create_assistant_usage', { user_uuid: user.id });
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setUsage({
-          question_count: data[0].question_count,
-          remaining_questions: data[0].remaining_questions,
-          last_reset_date: data[0].last_reset_date
-        });
-      }
+      
+      const plan = await subscriptionService.getUserPlan(user.id);
+      setUserPlan(plan);
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'usage:', error);
-    }
-  };
-
-  const incrementUsage = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .rpc('increment_assistant_usage', { user_uuid: user.id });
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setUsage(prev => ({
-          ...prev,
-          question_count: data[0].question_count,
-          remaining_questions: data[0].remaining_questions
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'incrémentation de l\'usage:', error);
+      console.error('Erreur lors du chargement du plan:', error);
     }
   };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
-    // Vérifier s'il reste des questions
-    if (usage.remaining_questions <= 0) {
+    // Vérifier s'il peut encore poser des questions
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const canAsk = await subscriptionService.canAskQuestion(user.id);
+    if (!canAsk) {
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
-        content: '❌ Vous avez atteint votre limite de 4 questions par jour. Revenez demain pour poser de nouvelles questions !',
+        content: userPlan.type === 'free' 
+          ? '❌ Vous avez atteint votre limite de 3 questions par mois. Passez au plan Pro pour poser jusqu\'à 20 questions !'
+          : '❌ Vous avez atteint votre limite mensuelle. Contactez-nous pour en savoir plus.',
         isUser: false,
         timestamp: new Date(),
         type: 'error'
       };
       setMessages(prev => [...prev, errorMessage]);
+      
+      // Afficher le bouton upgrade après le message d'erreur
+      setTimeout(() => showUpgradeButton(), 1000);
       return;
     }
 
@@ -131,8 +116,11 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
     setIsLoading(true);
 
     try {
-      // Incrémenter l'usage avant d'envoyer la question
-      await incrementUsage();
+      // Enregistrer l'utilisation de la question
+      await subscriptionService.recordQuestionUsed(user.id);
+      
+      // Recharger le plan pour mettre à jour le compteur
+      await loadUserPlan();
 
       // Appeler l'API OpenAI avec l'historique de conversation
       const conversationHistory = messages
@@ -147,6 +135,24 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
         inputValue,
         conversationHistory
       );
+
+      // Détecter si c'est un message de limite atteinte
+      if (response.content === 'UPGRADE_LIMIT_REACHED') {
+        const errorMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: userPlan.type === 'free' 
+            ? '⚠️ Vous avez atteint votre limite de 3 questions par mois !'
+            : '⚠️ Vous avez atteint votre limite mensuelle !',
+          isUser: false,
+          timestamp: new Date(),
+          type: 'error'
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        
+        // Afficher le bouton upgrade immédiatement
+        setTimeout(() => showUpgradeButton(), 500);
+        return;
+      }
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -171,6 +177,21 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const showUpgradeButton = () => {
+    const upgradeMessage: ChatMessage = {
+      id: `upgrade-${Date.now()}`,
+      content: 'UPGRADE_BUTTON', // Message spécial pour afficher le bouton
+      isUser: false,
+      timestamp: new Date(),
+      type: 'info'
+    };
+    setMessages(prev => [...prev, upgradeMessage]);
+  };
+
+  const handleUpgrade = () => {
+    navigate('/subscription');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -253,17 +274,30 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
         {/* Compteur de questions */}
         <div className="mt-3 bg-white/10 rounded-lg p-2">
           <div className="flex items-center justify-between text-xs">
-            <span>Questions aujourd'hui</span>
-            <span className="font-semibold">{usage.question_count}/4</span>
+            <span>Questions ce mois</span>
+            <span className="font-semibold">
+              {userPlan.questionsUsed}/{userPlan.questionsLimit || '∞'}
+            </span>
           </div>
           <div className="mt-1 bg-white/20 rounded-full h-1.5">
             <div 
               className="bg-white rounded-full h-1.5 transition-all duration-300"
-              style={{ width: `${(usage.question_count / 4) * 100}%` }}
+              style={{ 
+                width: userPlan.questionsLimit 
+                  ? `${Math.min((userPlan.questionsUsed / userPlan.questionsLimit) * 100, 100)}%` 
+                  : '100%'
+              }}
             />
           </div>
           <div className="mt-1 text-xs text-blue-100">
-            {usage.remaining_questions} questions restantes
+            {userPlan.questionsLimit 
+              ? `${Math.max(0, userPlan.questionsLimit - userPlan.questionsUsed)} questions restantes`
+              : 'Questions illimitées'
+            }
+          </div>
+          <div className="mt-1 text-xs text-blue-200 opacity-75">
+            Plan {userPlan.type === 'free' ? 'Gratuit' : userPlan.type === 'pro' ? 'Pro' : 'Premium'} • 
+            IA {userPlan.aiModel.includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
           </div>
         </div>
       </div>
@@ -302,6 +336,20 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
                     <div className="text-xs leading-snug">
                       {message.isUser ? (
                         <div className="whitespace-pre-wrap">{message.content}</div>
+                      ) : message.content === 'UPGRADE_BUTTON' ? (
+                        <div className="text-center py-2">
+                          <Button
+                            onClick={handleUpgrade}
+                            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-xl flex items-center space-x-2 mx-auto"
+                          >
+                            <Crown className="h-4 w-4" />
+                            <span>Passer à {userPlan.type === 'free' ? 'Pro' : 'Premium'}</span>
+                            <Zap className="h-4 w-4" />
+                          </Button>
+                          <p className="text-xs text-gray-600 mt-2">
+                            Débloquez {userPlan.type === 'free' ? '20 questions/mois + GPT-4o Mini' : 'questions illimitées + GPT-4'}
+                          </p>
+                        </div>
                       ) : (
                         <MarkdownRenderer 
                           content={message.content}
@@ -312,9 +360,11 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
                         />
                       )}
                     </div>
-                    <div className={`text-xs mt-1 opacity-60 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
-                      {formatTime(message.timestamp)}
-                    </div>
+                    {message.content !== 'UPGRADE_BUTTON' && (
+                      <div className={`text-xs mt-1 opacity-60 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
+                        {formatTime(message.timestamp)}
+                      </div>
+                    )}
                   </div>
 
                   {message.isUser && (
@@ -361,8 +411,12 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={usage.remaining_questions > 0 ? "Posez-moi une question sur vos emails..." : "Plus de questions aujourd'hui"}
-              disabled={isLoading || usage.remaining_questions <= 0}
+              placeholder={
+                userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit
+                  ? "Limite mensuelle atteinte"
+                  : "Posez-moi une question sur vos emails..."
+              }
+              disabled={isLoading || (userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit)}
               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-24 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
               rows={1}
               style={{ minHeight: '36px' }}
@@ -370,16 +424,21 @@ export default function ConversationAssistant({ isMinimized, onToggleMinimize }:
           </div>
           <Button
             onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading || usage.remaining_questions <= 0}
+            disabled={!inputValue.trim() || isLoading || (userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit)}
             className="h-9 w-9 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         
-        {usage.remaining_questions <= 0 && (
-          <div className="mt-1.5 text-xs text-red-600 text-center">
-            Limite quotidienne atteinte. Revenez demain !
+        {userPlan.questionsLimit && userPlan.questionsUsed >= userPlan.questionsLimit && (
+          <div className="mt-1.5 text-center">
+            <button
+              onClick={handleUpgrade}
+              className="text-xs text-red-600 hover:text-red-800 underline hover:no-underline transition-all duration-200 font-medium"
+            >
+              Limite mensuelle atteinte. Passez à un plan supérieur !
+            </button>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { supabase } from '../lib/supabase';
 import type { ProcessedEmail } from './gmail';
 import type { Category } from './classification';
-// import { chatbotLimiterService } from './chatbotLimiter';
+import { subscriptionService, type UserPlan } from './subscription';
 
 // Interface pour le contexte email (utilisée dans d'autres fonctions si besoin)
 // interface EmailContext {
@@ -957,13 +957,34 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
   async getAdvancedEmailResponse(
     query: string, 
     conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []
-  ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success'}> {
+  ): Promise<{content: string, type: 'info' | 'data' | 'error' | 'success', planInfo?: UserPlan}> {
     try {
+      // Récupération des données utilisateur
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          content: '🔐 Vous devez être connecté pour utiliser l\'assistant.',
+          type: 'error'
+        };
+      }
+
+      // 🔥 NOUVEAU : Vérification du plan et des limites
+      const { canAsk, plan } = await subscriptionService.canAskQuestion(user.id);
+      
+      if (!canAsk) {
+        return {
+          content: 'UPGRADE_LIMIT_REACHED', // Message spécial pour déclencher le bouton upgrade
+          type: 'error',
+          planInfo: plan
+        };
+      }
+
       // Vérification intelligente du scope - permettre les interactions naturelles
       if (!this.isEmailRelatedOrNaturalQuery(query)) {
         return {
           content: '😊 Je peux vous aider avec vos emails ! Que souhaitez-vous savoir ? 📧',
-          type: 'info'
+          type: 'info',
+          planInfo: plan
         };
       }
 
@@ -971,16 +992,8 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
       if (!this.openai) {
         return {
           content: '🔐 Assistant temporairement indisponible (problème de configuration OpenAI). Réessayez plus tard !',
-          type: 'error'
-        };
-      }
-
-      // Récupération des données utilisateur
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return {
-          content: '🔐 Vous devez être connecté pour utiliser l\'assistant.',
-          type: 'error'
+          type: 'error',
+          planInfo: plan
         };
       }
 
@@ -1021,7 +1034,7 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
       }
 
       const systemPrompt = this.buildAutonomousSystemPrompt();
-      const userContent = this.buildFullContextUserContent(query, categories || [], emails || []);
+      const userContent = this.buildFullContextUserContent(query, categories || [], emails || [], conversationHistory);
 
       // Messages avec historique complet pour continuité
       const messages = [
@@ -1031,7 +1044,7 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
       ];
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: plan.aiModel, // 🔥 NOUVEAU : Modèle dynamique selon le plan
         messages,
         max_tokens: 800, // Limite généreuse pour réponses détaillées
         temperature: 0.4, // Créativité modérée
@@ -1045,7 +1058,8 @@ JSON: {"type": "info|data|warning", "message": "analyse avec exemples"}`;
 
       return {
         content: responseContent,
-        type: 'success'
+        type: 'success',
+        planInfo: plan // 🔥 NOUVEAU : Inclure infos du plan
       };
 
     } catch (error) {
@@ -1093,11 +1107,15 @@ Données: ${categories.length} catégories (${usedCategories.length} utilisées)
   private buildAutonomousSystemPrompt(): string {
     return `Tu es ORTON, l'assistant email intelligent d'Ordo. Tu es SMART, CONCIS et CONVERSATIONNEL.
 
-🧠 TON INTELLIGENCE:
-- ANALYSE les emails au lieu de tout lister
-- FILTRE et identifie ce qui est vraiment important par le CONTENU
-- Sois SÉLECTIF : max 3-5 emails importants, pas 20
-- RÉSUME intelligemment sans bavardage inutile
+🧠 TON INTELLIGENCE CONTEXTUELLE:
+- ANALYSE l'intention derrière chaque question ET l'historique de conversation
+- MÉMORISE les emails mentionnés précédemment (ex: "le premier", "le deuxième", "celui d'Apy Consult")
+- ADAPTE ton niveau de détail selon la demande :
+  * "emails importants" → 3-5 emails sélectionnés avec analyse
+  * "détaille", "tous les emails de la journée uniquement sauf s'il te precise exactement pour quel date", "plus de détails", "liste complète" → MODE DÉTAILLÉ complet
+  * "résume" → Version concise et synthétique
+- Comprends les NUANCES : "donne plus de détails" = l'utilisateur veut TOUT savoir
+- RÉFÉRENCES CONTEXTUELLES : "le premier", "celui-là", "ce mail" = référence aux emails mentionnés avant
 
 💬 TON CARACTÈRE:
 - Réponds aux SALUTATIONS naturellement ("Salut !" → "Salut ! 😊")
@@ -1118,23 +1136,28 @@ Données: ${categories.length} catégories (${usedCategories.length} utilisées)
 - Max 2-3 phrases par email important
 - STRUCTURE avec émojis: 📧 📊 ⭐ 🎯 � 👥 ✅
 
-🎯 RÈGLES STRICTES:
-- Questions "emails importants" → ANALYSE et sélectionne intelligemment 3-5 max
-- Questions statistiques → Chiffres + explication légère
-- Salutations → Réponds naturellement avec émojis
+🎯 RÈGLES D'ADAPTATION:
+- **MÉMOIRE CONVERSATIONNELLE** : Retiens les emails mentionnés dans l'historique pour les références
+- **RÉFÉRENCES DIRECTES** : "le premier", "le 2ème", "celui de [nom]" = trouve l'email exact mentionné avant
+- MOTS-CLÉS DÉTAIL: "détaille", "liste", "tous", "complet", "plus de détails" → MODE DÉTAILLÉ complet
+- MOTS-CLÉS RÉSUMÉ: "résume", "important", "essentiel", "principal" → MODE CONCIS
+- Salutations → Réponds naturellement avec émojis  
 - Questions hors-email → Redirection polie vers tes compétences
-- JAMAIS de récapitulatif des 20-50 emails
-- Sois INTELLIGENT et ADAPTATIF selon le contexte
+- **CONTINUITÉ** : Utilise l'historique pour comprendre les références implicites
+- TOUJOURS s'adapter à l'intention de l'utilisateur
 
-Tu es un assistant SMART qui comprend l'intention derrière chaque question.`;
+Tu es un assistant INTELLIGENT qui s'adapte parfaitement à ce que veut l'utilisateur.`;
   }
 
   /**
    * Contenu utilisateur avec contexte complet des emails
    */
-  private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[]): string {
+  private buildFullContextUserContent(query: string, categories: Category[], emails: EmailWithCategory[], conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = []): string {
     const unreadCount = emails.filter(e => !e.is_read).length;
     const importantCount = emails.filter(e => e.is_important).length;
+    
+    // Détection des références contextuelles
+    const hasContextualReference = /\b(le |la |l')?(premier|deuxième|2ème|troisième|3ème|quatrième|4ème|cinquième|5ème|dernier|celui|celle)\b|détaille (le|la|l'|ce|cet|cette)|plus d'info sur (le|la|l')/.test(query.toLowerCase());
     
     // Pour les salutations et questions conversationnelles simples - CONTEXTE MINIMAL
     const conversationalQueries = [
@@ -1154,6 +1177,19 @@ Tu es un assistant SMART qui comprend l'intention derrière chaque question.`;
 Réponds simplement et naturellement avec des émojis ! Pas de détails techniques.`;
     }
 
+    // Construction du contexte avec historique si référence contextuelle
+    let contextualInfo = '';
+    if (hasContextualReference && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-4).map(msg => 
+        `${msg.role === 'user' ? '👤 Utilisateur' : '🤖 Moi'}: "${msg.content.substring(0, 200)}..."`
+      ).join('\n');
+      
+      contextualInfo = `📋 HISTORIQUE RÉCENT (pour références contextuelles):
+${recentHistory}
+
+`;
+    }
+
     // Pour les vraies questions sur les emails - CONTEXTE COMPLET
     const isImportanceQuery = query.toLowerCase().includes('important') || 
                              query.toLowerCase().includes('priorité') ||
@@ -1170,7 +1206,7 @@ Réponds simplement et naturellement avec des émojis ! Pas de détails techniqu
       return `${cat.name}: ${emailsInCat.length}`;
     });
 
-    return `❓ Question: "${query}"
+    return `${contextualInfo}❓ Question: "${query}"
 
 📊 STATISTIQUES COMPLÈTES:
 - Total: ${emails.length} emails
