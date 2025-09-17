@@ -26,6 +26,17 @@ export default function EmailCompose({ isOpen, onClose, replyTo, recipient }: Em
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showScopeWarning, setShowScopeWarning] = useState(false);
   const [scopeWarningMessage, setScopeWarningMessage] = useState('');
+  
+  // États pour les tons IA
+  const [selectedTone, setSelectedTone] = useState<string>('neutre');
+  const [originalSuggestion, setOriginalSuggestion] = useState('');
+  const [isChangingTone, setIsChangingTone] = useState(false);
+
+  const tones = [
+    { key: 'professionnel', label: 'Professionnel', icon: '👔' },
+    { key: 'courtois', label: 'Courtois', icon: '🤝' },
+    { key: 'decontracte', label: 'Décontracté', icon: '😊' }
+  ];
 
   // Pré-remplir les champs si c'est une réponse
   useEffect(() => {
@@ -54,13 +65,18 @@ ${replyTo.body_text || replyTo.snippet}`;
     
     setIsAnalyzing(true);
     try {
-      const improveEmailPrompt = `Réécris ce brouillon d'email pour qu'il soit plus professionnel et efficace. Retourne UNIQUEMENT la version améliorée, sans commentaire ni analyse :
+      const improveEmailPrompt = `Réécris ce brouillon d'email pour qu'il soit plus professionnel et efficace. 
 
-Destinataire: ${to}
+RÈGLES IMPORTANTES :
+- Ne JAMAIS inclure "Destinataire:", "À:", "De:" ou toute ligne de destinataire
+- Commencer directement par le contenu du message
+- Terminer par "[Votre nom]" et ne rien ajouter après
+- Retourner UNIQUEMENT le contenu du message amélioré
+
 Objet: ${subject}
-Message: ${message}
+Message à améliorer: ${message}
 
-Version améliorée:`;
+Version améliorée du message:`;
 
       const response = await openaiService.getAdvancedEmailResponse(
         improveEmailPrompt,
@@ -69,12 +85,84 @@ Version améliorée:`;
       
       if (response.content) {
         setAiSuggestion(response.content);
+        setOriginalSuggestion(response.content); // Sauvegarder la suggestion originale
+        setSelectedTone('neutre');
         setShowAIAssistant(true);
       }
     } catch (error) {
       console.error('Erreur analyse IA:', error);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Fonction pour changer le ton du message
+  const changeMessageTone = async (toneKey: string) => {
+    if (!originalSuggestion || isChangingTone) return;
+    
+    setIsChangingTone(true);
+    setSelectedTone(toneKey);
+    
+    try {
+      let tonePrompt = '';
+      
+      switch (toneKey) {
+        case 'professionnel':
+          tonePrompt = `Tu es un assistant de rédaction email. REFORMULE UNIQUEMENT ce message pour qu'il soit très professionnel et formel.
+
+RÈGLES IMPORTANTES :
+- Ne pas parler EN TANT QU'assistant IA
+- Reformuler DIRECTEMENT le message comme si tu étais l'expéditeur
+- Utiliser un vocabulaire soutenu et des formules de politesse corporates
+- Commencer par la formulation d'appel appropriée
+- Terminer par "[Votre nom]" uniquement
+- PAS de commentaires, analyse ou introduction
+
+Message à reformuler en style professionnel: ${originalSuggestion}`;
+          break;
+        case 'courtois':
+          tonePrompt = `Tu es un assistant de rédaction email. REFORMULE UNIQUEMENT ce message pour qu'il soit poli et respectueux.
+
+RÈGLES IMPORTANTES :
+- Ne pas parler EN TANT QU'assistant IA
+- Reformuler DIRECTEMENT le message comme si tu étais l'expéditeur
+- Utiliser un ton aimable et bienveillant avec des formules de politesse chaleureuses
+- Commencer par la formulation d'appel appropriée
+- Terminer par "[Votre nom]" uniquement
+- PAS de commentaires, analyse ou introduction
+
+Message à reformuler en style courtois: ${originalSuggestion}`;
+          break;
+        case 'decontracte':
+          tonePrompt = `Tu es un assistant de rédaction email. REFORMULE UNIQUEMENT ce message pour qu'il soit décontracté et amical.
+
+RÈGLES IMPORTANTES :
+- Ne pas parler EN TANT QU'assistant IA
+- Reformuler DIRECTEMENT le message comme si tu étais l'expéditeur
+- Utiliser un ton plus personnel et naturel, amical mais professionnel
+- Commencer par la formulation d'appel appropriée
+- Terminer par "[Votre nom]" uniquement
+- PAS de commentaires, analyse ou introduction
+
+Message à reformuler en style décontracté: ${originalSuggestion}`;
+          break;
+        default:
+          setAiSuggestion(originalSuggestion);
+          setIsChangingTone(false);
+          return;
+      }
+
+      const response = await openaiService.getAdvancedEmailResponse(tonePrompt, []);
+      
+      if (response.content) {
+        setAiSuggestion(response.content);
+      }
+    } catch (error) {
+      console.error('Erreur changement de ton:', error);
+      // En cas d'erreur, revenir à la suggestion originale
+      setAiSuggestion(originalSuggestion);
+    } finally {
+      setIsChangingTone(false);
     }
   };
 
@@ -157,6 +245,8 @@ Version améliorée:`;
       setMessage('');
       setAttachments([]);
       setAiSuggestion('');
+      setOriginalSuggestion('');
+      setSelectedTone('neutre');
       setShowAIAssistant(false);
 
     } catch (error) {
@@ -389,6 +479,52 @@ Version améliorée:`;
                     >
                       <X className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  {/* Boutons de ton */}
+                  <div className="mb-4">
+                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTone('neutre');
+                          setAiSuggestion(originalSuggestion);
+                        }}
+                        disabled={isChangingTone}
+                        className={`text-xs px-2 py-1 h-8 ${
+                          selectedTone === 'neutre'
+                            ? 'bg-gray-100 border-gray-300 text-gray-700'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="mr-1 text-xs">⚖️</span>
+                        <span className="truncate">Original</span>
+                      </Button>
+                      {tones.map((tone) => (
+                        <Button
+                          key={tone.key}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => changeMessageTone(tone.key)}
+                          disabled={isChangingTone}
+                          className={`text-xs px-2 py-1 h-8 ${
+                            selectedTone === tone.key
+                              ? 'bg-purple-100 border-purple-300 text-purple-700'
+                              : 'hover:bg-purple-50'
+                          }`}
+                        >
+                          <span className="mr-1 text-xs">{tone.icon}</span>
+                          <span className="truncate">{tone.label}</span>
+                        </Button>
+                      ))}
+                    </div>
+                    {isChangingTone && (
+                      <div className="text-xs text-purple-600 flex items-center">
+                        <Sparkles className="h-3 w-3 mr-1 animate-spin" />
+                        Adaptation du ton en cours...
+                      </div>
+                    )}
                   </div>
                   
                   <div className="bg-white rounded-lg p-4 shadow-sm">
