@@ -14,6 +14,7 @@ import { Layout } from './components/layout/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { CategoriesPage } from './pages/CategoriesPage'
 import SentEmailsPage from './pages/SentEmailsPage'
+import SettingsPage from './pages/SettingsPage'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import { handlePlanSelection } from './services/stripe'
 import { subscriptionService } from './services/subscription'
@@ -308,16 +309,7 @@ function SubscriptionPage({ user }: { user: User }) {
   )
 }
 
-function SettingsPage() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Paramètres</h1>
-      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-        <p className="text-gray-500">Page des paramètres en cours de développement</p>
-      </div>
-    </div>
-  )
-}
+
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
