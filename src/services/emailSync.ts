@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { gmailService, type ProcessedEmail } from './gmail';
 import { classificationService, type Category } from './classification';
 import { openaiService } from './openai'; // Import du service OpenAI enrichi
+import { ContactsInitializer } from './contactsInitializer';
 
 export interface SyncResult {
   success: boolean;
@@ -45,6 +46,8 @@ class EmailSyncService {
 
     this.isSyncing = true;
     const startTime = Date.now();
+    let user: { id: string } | null = null; // Déclarer user en dehors du try pour l'utiliser dans catch
+    
     const result: SyncResult = {
       success: false,
       processed_emails: 0,
@@ -62,7 +65,8 @@ class EmailSyncService {
         message: 'Vérification de la connexion Gmail...'
       });
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: authData } = await supabase.auth.getUser();
+      user = authData.user;
       if (!user) {
         throw new Error('Utilisateur non connecté');
       }
@@ -76,10 +80,28 @@ class EmailSyncService {
       const isFirstSync = existingEmailsCount === 0;
       console.log(isFirstSync ? '🆕 Première synchronisation détectée' : `🔄 Synchronisation incrémentale (${existingEmailsCount} emails existants)`);
 
-      // Test de connexion Gmail
+      // Test de connexion Gmail avec retry automatique
+      this.updateProgress({
+        stage: 'connecting',
+        progress: 10,
+        message: 'Test de connexion Gmail...'
+      });
+
       const isConnected = await gmailService.testConnection();
       if (!isConnected) {
-        throw new Error('Impossible de se connecter à Gmail. Veuillez vous reconnecter.');
+        // Au lieu de planter, essayer de comprendre pourquoi
+        console.log('⚠️ Connexion Gmail échouée, tentative de diagnostic...');
+        
+        try {
+          // Une dernière tentative pour diagnostiquer le problème
+          await gmailService.fetchRecentEmails(1);
+        } catch (detailError) {
+          if (detailError instanceof Error && detailError.message.includes('Session expirée')) {
+            throw new Error('Votre session Gmail a expiré. Veuillez vous déconnecter puis vous reconnecter.');
+          } else {
+            throw new Error(`Impossible de se connecter à Gmail. ${detailError instanceof Error ? detailError.message : 'Erreur inconnue'}`);
+          }
+        }
       }
 
       let emails: ProcessedEmail[] = [];
@@ -256,6 +278,19 @@ class EmailSyncService {
       });
 
       result.success = true;
+
+      // 8. Initialiser/synchroniser les contacts après la synchronisation des emails
+      if (result.new_emails > 0) {
+        try {
+          console.log('👥 Synchronisation des contacts après la synchronisation des emails...');
+          const contactsResult = await ContactsInitializer.initializeUserContacts(user.id);
+          console.log(`📊 Contacts synchronisés: ${contactsResult.message}`);
+        } catch (contactError) {
+          console.warn('⚠️ Erreur lors de la synchronisation des contacts (non critique):', contactError);
+          // Ne pas faire échouer la synchronisation principale pour les contacts
+        }
+      }
+
       result.sync_time = Date.now() - startTime;
 
     } catch (error) {
@@ -277,6 +312,17 @@ class EmailSyncService {
         });
         
         result.success = true; // Considérer comme un succès
+
+        // Initialiser les contacts même avec des ressources bloquées
+        if (result.new_emails > 0) {
+          try {
+            console.log('👥 Synchronisation des contacts...');
+            const contactsResult = await ContactsInitializer.initializeUserContacts(user.id);
+            console.log(`📊 Contacts synchronisés: ${contactsResult.message}`);
+          } catch (contactError) {
+            console.warn('⚠️ Erreur lors de la synchronisation des contacts (non critique):', contactError);
+          }
+        }
       } else {
         // Erreur réelle de synchronisation
         result.errors.push(error instanceof Error ? error.message : String(error));

@@ -62,23 +62,144 @@ class GmailService {
     return session.provider_token;
   }
 
+  /**
+   * Récupère un token d'accès valide, en le rafraîchissant si nécessaire
+   */
+  private async getValidAccessToken(): Promise<string> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.provider_token) {
+        throw new Error('AUTH_REQUIRED');
+      }
+
+      // D'abord, tester si le token actuel fonctionne
+      const testResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
+        headers: {
+          'Authorization': `Bearer ${session.provider_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (testResponse.ok) {
+        // Token valide, le retourner
+        return session.provider_token;
+      }
+
+      if (testResponse.status === 401 && session.provider_refresh_token) {
+        // Token expiré, essayer de le rafraîchir
+        console.log('🔄 Token expiré, tentative de rafraîchissement...');
+        
+        const refreshed = await this.refreshAccessToken(session.provider_refresh_token);
+        if (refreshed) {
+          console.log('✅ Token rafraîchi avec succès');
+          return refreshed;
+        }
+      }
+
+      // Si le refresh échoue ou pas de refresh_token
+      throw new Error('AUTH_REQUIRED');
+      
+    } catch (error) {
+      if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
+        throw new Error('Session expirée. Veuillez vous reconnecter pour continuer.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Rafraîchit le token d'accès en utilisant le refresh token
+   */
+  private async refreshAccessToken(refreshToken: string): Promise<string | null> {
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token'
+        })
+      });
+
+      if (!response.ok) {
+        console.error('❌ Erreur refresh token:', await response.text());
+        return null;
+      }
+
+      const tokens = await response.json();
+      
+      // Mettre à jour la session Supabase avec le nouveau token
+      const { error } = await supabase.auth.updateUser({
+        data: { 
+          provider_token: tokens.access_token,
+          token_expires_at: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString()
+        }
+      });
+
+      if (error) {
+        console.error('❌ Erreur mise à jour session:', error);
+        return null;
+      }
+
+      return tokens.access_token;
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du rafraîchissement du token:', error);
+      return null;
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async makeGmailRequest(endpoint: string): Promise<any> {
-    const accessToken = await this.getAccessToken();
-    
-    const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const maxRetries = 2;
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Erreur Gmail API: ${error.error?.message || response.statusText}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const accessToken = await this.getValidAccessToken();
+        
+        const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me${endpoint}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          
+          // Si c'est une erreur d'auth et qu'on peut encore réessayer
+          if (response.status === 401 && attempt < maxRetries) {
+            console.log(`🔄 Erreur 401, tentative ${attempt}/${maxRetries}, retry...`);
+            continue;
+          }
+          
+          throw new Error(`Erreur Gmail API: ${error.error?.message || response.statusText}`);
+        }
+
+        return response.json();
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Si c'est une erreur AUTH_REQUIRED, ne pas retry
+        if (lastError.message.includes('Session expirée')) {
+          throw lastError;
+        }
+        
+        if (attempt < maxRetries) {
+          console.log(`🔄 Erreur tentative ${attempt}/${maxRetries}:`, lastError.message, '- Retry...');
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Délai progressif
+        }
+      }
     }
 
-    return response.json();
+    throw lastError || new Error('Erreur inconnue lors de la requête Gmail');
   }
 
   async fetchRecentEmails(maxResults: number = 100): Promise<ProcessedEmail[]> {
@@ -455,6 +576,11 @@ class GmailService {
       return true;
     } catch (error) {
       console.error('Test de connexion Gmail échoué:', error);
+      // Si c'est juste un problème de token, retourner false pour déclencher une reconnection
+      if (error instanceof Error && error.message.includes('Session expirée')) {
+        console.log('🔄 Test connection: Session expirée détectée');
+        return false;
+      }
       return false;
     }
   }
@@ -491,7 +617,7 @@ class GmailService {
       const encodedEmail = this.encodeBase64Url(email);
       
       // Envoyer via l'API Gmail
-      const accessToken = await this.getAccessToken();
+      const accessToken = await this.getValidAccessToken();
       
       const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
         method: 'POST',
@@ -539,7 +665,7 @@ class GmailService {
    */
   async checkSendPermissions(): Promise<boolean> {
     try {
-      const accessToken = await this.getAccessToken();
+      const accessToken = await this.getValidAccessToken();
       
       // Test simple : essayer d'accéder à l'endpoint draft (nécessite les permissions d'envoi)
       const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/drafts?maxResults=1', {

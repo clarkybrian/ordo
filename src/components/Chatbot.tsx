@@ -2,7 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { openaiService, type ChatbotResponse } from '../services/openai';
+import { useEmailComposition } from '../hooks/useEmailComposition';
+import { ContactSuggestions } from './ContactSuggestions';
+import { EmailDraftPreview } from './EmailDraftPreview';
+import { ContactsInitializer } from '../services/contactsInitializer';
+import { ContactsDebugService } from '../services/contactsDebug';
 import { Button } from './ui/button';
+import type { Contact } from '../services/contacts';
 
 interface ChatMessage {
   id: string;
@@ -21,7 +27,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '👋 Salut ! Je suis Orton, votre assistant email intelligent !\n\n🧠 Je connais tous vos emails et je suis là pour vous aider intelligemment :\n• 📊 Résumés des emails importants (pas tout !)\n• � Recherches dans vos messages  \n• 📧 Aide à la rédaction de réponses\n\n💬 N\'hésitez pas à me parler naturellement ! Que puis-je faire pour vous ? 😊',
+      content: '👋 Salut ! Je suis Orton, votre assistant email intelligent !\n\n🧠 Je connais tous vos emails et je suis là pour vous aider intelligemment :\n• 📊 Résumés des emails importants (pas tout !)\n• 🔍 Recherches dans vos messages  \n• 📧 Aide à la rédaction et envoi d\'emails\n• 👥 Utilisez @ pour sélectionner des contacts\n\n💬 N\'hésitez pas à me parler naturellement ! Que puis-je faire pour vous ? 😊',
       isUser: false,
       timestamp: new Date(),
       type: 'info'
@@ -36,6 +42,9 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
     emailsCount: 0,
     lastSync: null as Date | null
   });
+
+  // Hook de composition d'emails
+  const emailComposition = useEmailComposition();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +149,59 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
     }
   };
 
+  // Fonction pour détecter automatiquement @ et déclencher la recherche
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+
+    // Détecter le symbole @ pour déclencher la recherche de contacts
+    if (value.includes('@')) {
+      console.log('🔍 Détection @ dans l\'input:', value);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          console.log('👤 Utilisateur trouvé:', user.id);
+          const atIndex = value.lastIndexOf('@');
+          const searchTerm = value.substring(atIndex + 1);
+          console.log('🔎 Terme de recherche:', searchTerm);
+          
+          // Déclencher la recherche même avec un terme vide pour afficher les contacts favoris
+          if (searchTerm.length >= 0) {
+            console.log('⚡ Lancement de la recherche de contacts...');
+            const result = await emailComposition.processMessage(user.id, value);
+            console.log('📧 Résultat de la recherche:', result);
+            console.log('👥 Suggestions visibles:', emailComposition.showSuggestions);
+            console.log('📋 Nombre de contacts:', emailComposition.contactSuggestions.length);
+            
+            // Si aucun contact n'est trouvé, créer des contacts de secours automatiquement
+            if (emailComposition.contactSuggestions.length === 0 && emailComposition.showSuggestions) {
+              console.log('⚠️ Aucun contact trouvé, tentative de réparation automatique...');
+              
+              // Vérifier l'état des contacts
+              const health = await ContactsDebugService.checkContactsHealth(user.id);
+              
+              if (health.contactsCount === 0) {
+                console.log('🔧 Aucun contact trouvé, création automatique de contacts...');
+                const fixResult = await ContactsDebugService.createEmergencyContacts(user.id);
+                
+                if (fixResult.success) {
+                  // Relancer la recherche
+                  console.log('🔄 Contacts créés, relancement de la recherche...');
+                  await emailComposition.processMessage(user.id, value);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la recherche de contacts:', error);
+      }
+    } else {
+      // Cacher les suggestions si pas de @
+      emailComposition.setShowSuggestions(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -151,6 +213,7 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue;
     setInputValue('');
     setIsLoading(true);
 
@@ -160,20 +223,67 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
         throw new Error('Utilisateur non connecté');
       }
 
-      const response: ChatbotResponse = await openaiService.handleChatbotQuery(inputValue, user.id);
+      // Détecter les commandes spéciales
+      if (messageContent.startsWith('/')) {
+        const commandResult = await handleSpecialCommands(messageContent, user.id);
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: commandResult,
+          isUser: false,
+          timestamp: new Date(),
+          type: 'info'
+        };
+        setMessages(prev => [...prev, botMessage]);
+        return;
+      }
+
+      // Traiter d'abord avec le système de composition d'emails
+      const emailResult = await emailComposition.processMessage(user.id, messageContent);
       
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        content: response.message,
-        isUser: false,
-        timestamp: new Date(),
-        type: response.type
-      };
+      // Si c'est une recherche de contacts, on affiche les suggestions et on traite différemment
+      if (emailResult.showContactSuggestions) {
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: emailResult.response,
+          isUser: false,
+          timestamp: new Date(),
+          type: 'info'
+        };
+        setMessages(prev => [...prev, botMessage]);
+      }
+      // Si c'est une composition ou modification d'email, on affiche le résultat
+      else if (emailResult.showEmailDraft || emailResult.response.includes('📧') || emailResult.response.includes('✏️')) {
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: emailResult.response,
+          isUser: false,
+          timestamp: new Date(),
+          type: 'info'
+        };
+        setMessages(prev => [...prev, botMessage]);
+      }
+      // Sinon, traitement normal avec le chatbot
+      else {
+        const response: ChatbotResponse = await openaiService.handleChatbotQuery(messageContent, user.id);
+        
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: response.message,
+          isUser: false,
+          timestamp: new Date(),
+          type: response.type
+        };
 
-      setMessages(prev => [...prev, botMessage]);
+        setMessages(prev => [...prev, botMessage]);
+      }
 
-      // Sauvegarder la conversation en base
-      await saveChatMessage(userMessage, botMessage);
+      // Sauvegarder la conversation en base si c'est un message normal
+      if (!emailResult.showContactSuggestions && !emailResult.showEmailDraft) {
+        await saveChatMessage(userMessage, { 
+          ...messages[messages.length - 1], 
+          content: emailResult.response 
+        });
+      }
 
     } catch (error) {
       console.error('Erreur chatbot:', error);
@@ -187,6 +297,129 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Gestion des commandes spéciales
+  const handleSpecialCommands = async (command: string, userId: string): Promise<string> => {
+    const commandName = command.toLowerCase();
+
+    switch (commandName) {
+      case '/contacts-stats':
+        try {
+          const stats = await ContactsInitializer.getContactsStats(userId);
+          return `📊 **Statistiques de vos contacts**\n\n` +
+            `📧 **Total:** ${stats.totalContacts} contacts\n` +
+            `⭐ **Favoris:** ${stats.favoriteContacts} contacts\n` +
+            `🕐 **Récents (7j):** ${stats.recentContacts} contacts\n` +
+            `🟢 **Actifs (30j):** ${stats.activeContacts} contacts\n\n` +
+            `💡 *Les contacts sont automatiquement synchronisés lors de la synchronisation des emails*`;
+        } catch (error) {
+          return `❌ Erreur lors de la récupération des statistiques: ${error}`;
+        }
+        
+      case '/contacts-debug':
+        try {
+          const health = await ContactsDebugService.checkContactsHealth(userId);
+          return `🔍 **Diagnostic des contacts**\n\n` +
+            `📊 **Nombre de contacts :** ${health.contactsCount}\n` +
+            `🟢 **État :** ${health.hasError ? 'Erreur' : 'OK'}\n` +
+            `📝 **Message :** ${health.message}\n\n` +
+            `💡 *Utilisez /contacts-fix pour créer des contacts de test si nécessaire*`;
+        } catch (error) {
+          return `❌ Erreur lors du diagnostic des contacts: ${error}`;
+        }
+        
+      case '/contacts-fix':
+        try {
+          const result = await ContactsDebugService.createEmergencyContacts(userId);
+          return `🛠️ **Réparation des contacts**\n\n` +
+            `✅ **Succès :** ${result.success ? 'Oui' : 'Non'}\n` +
+            `📊 **Contacts créés :** ${result.contactsCreated}\n` +
+            `📝 **Message :** ${result.message}\n\n` +
+            `💡 *Essayez maintenant de taper @ pour voir vos contacts*`;
+        } catch (error) {
+          return `❌ Erreur lors de la réparation des contacts: ${error}`;
+        }
+
+      case '/help':
+      case '/aide':
+        return `🤖 **Commandes disponibles:**\n\n` +
+          `**📧 Composition d'emails:**\n` +
+          `• Tapez @ pour sélectionner un contact\n` +
+          `• "Écris un email à @john pour..." pour composer\n` +
+          `• "Rends-le plus formel/décontracté" pour modifier\n` +
+          `• "vas-y envoie-le" pour envoyer\n\n` +
+          `**👥 Gestion des contacts:**\n` +
+          `• \`/contacts-stats\` - Voir les statistiques de vos contacts\n` +
+          `• \`/contacts-debug\` - Diagnostiquer les problèmes de contacts\n` +
+          `• \`/contacts-fix\` - Créer des contacts de test si nécessaire\n` +
+          `• *Les contacts sont automatiquement synchronisés depuis Gmail*\n\n` +
+          `**ℹ️ Aide:**\n` +
+          `• \`/help\` ou \`/aide\` - Afficher cette aide`;
+
+      default:
+        return `❓ Commande non reconnue: ${command}\n\nTapez \`/help\` pour voir les commandes disponibles.`;
+    }
+  };
+
+  const handleContactSelect = async (contact: Contact) => {
+    try {
+      const response = await emailComposition.selectContact(contact);
+      
+      const botMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: response,
+        isUser: false,
+        timestamp: new Date(),
+        type: 'info'
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Erreur lors de la sélection du contact:', error);
+    }
+  };
+
+  const handleEmailModification = async (instruction: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const result = await emailComposition.processMessage(user.id, instruction);
+      
+      const botMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: result.response,
+        isUser: false,
+        timestamp: new Date(),
+        type: 'info'
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Erreur lors de la modification de l\'email:', error);
+    }
+  };
+
+  const handleEmailSend = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const result = await emailComposition.processMessage(user.id, 'vas-y envoie-le');
+      
+      const botMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: result.response,
+        isUser: false,
+        timestamp: new Date(),
+        type: result.response.includes('✅') ? 'info' : 'error'
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de l\'email:', error);
     }
   };
 
@@ -396,6 +629,18 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Email Draft Preview */}
+            {emailComposition.currentDraft && emailComposition.currentDraft.body && (
+              <div className="px-4 pb-4">
+                <EmailDraftPreview
+                  draft={emailComposition.currentDraft}
+                  isVisible={true}
+                  onModify={handleEmailModification}
+                  onSend={handleEmailSend}
+                />
+              </div>
+            )}
+
             {/* Questions rapides - Apparaissent uniquement au focus */}
             {showQuickQuestions && (
               <motion.div
@@ -426,30 +671,43 @@ export default function Chatbot({ isOpen, onToggle }: ChatbotProps) {
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200">
-              <div className="flex space-x-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  onFocus={() => setShowQuickQuestions(true)}
-                  onBlur={() => {
-                    // Délai pour permettre le clic sur les questions
-                    setTimeout(() => setShowQuickQuestions(false), 200);
-                  }}
-                  placeholder="Posez votre question... (cliquez pour voir les suggestions)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  disabled={isLoading}
+              <div className="relative">
+                <div className="flex space-x-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    onFocus={() => setShowQuickQuestions(true)}
+                    onBlur={() => {
+                      // Délai pour permettre le clic sur les questions et contacts
+                      setTimeout(() => {
+                        setShowQuickQuestions(false);
+                        emailComposition.setShowSuggestions(false);
+                      }, 200);
+                    }}
+                    placeholder="Posez votre question... Utilisez @ pour sélectionner un contact"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isLoading}
+                    size="sm"
+                    className="px-4"
+                  >
+                    📤
+                  </Button>
+                </div>
+
+                {/* Contact Suggestions */}
+                <ContactSuggestions
+                  contacts={emailComposition.contactSuggestions}
+                  isVisible={emailComposition.showSuggestions}
+                  onSelectContact={handleContactSelect}
+                  className="mt-1"
                 />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading}
-                  size="sm"
-                  className="px-4"
-                >
-                  📤
-                </Button>
               </div>
             </div>
           </motion.div>
