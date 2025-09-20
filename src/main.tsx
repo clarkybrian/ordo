@@ -5,6 +5,9 @@ import App from './App.tsx'
 // Importe le script de nettoyage du cache
 // import './utils/clearCache.js' // Temporairement désactivé
 
+// Importer le gestionnaire de session pour l'initialiser
+import './services/sessionManager';
+
 // En développement, on permet de désactiver le service worker
 const isDev = import.meta.env.DEV
 const shouldRegisterSW = true // Toujours activer pour tester PWA

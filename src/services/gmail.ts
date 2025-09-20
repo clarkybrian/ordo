@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { sessionManager } from './sessionManager';
 
 export interface GmailPayload {
   partId: string;
@@ -52,115 +53,49 @@ export interface ProcessedEmail {
 }
 
 class GmailService {
-  private async getAccessToken(): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.provider_token) {
-      throw new Error('Token d\'accès Gmail non disponible. Veuillez vous reconnecter.');
-    }
-    
-    return session.provider_token;
-  }
-
   /**
-   * Récupère un token d'accès valide, en le rafraîchissant si nécessaire
+   * Récupère un token d'accès valide avec refresh automatique par Supabase
    */
   private async getValidAccessToken(): Promise<string> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Vérifier si la session est valide et la renouveler si nécessaire
+      const isValid = await sessionManager.isSessionValid();
+      if (!isValid) {
+        console.log('🔄 Session invalide, tentative de renouvellement...');
+        await sessionManager.refreshSession();
+      }
+
+      // Récupérer la session (maintenant valide)
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('❌ Erreur lors de la récupération de la session:', error);
+        throw new Error('Erreur de session. Veuillez vous reconnecter.');
+      }
       
       if (!session?.provider_token) {
-        throw new Error('AUTH_REQUIRED');
-      }
-
-      // D'abord, tester si le token actuel fonctionne
-      const testResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
-        headers: {
-          'Authorization': `Bearer ${session.provider_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (testResponse.ok) {
-        // Token valide, le retourner
-        return session.provider_token;
-      }
-
-      if (testResponse.status === 401 && session.provider_refresh_token) {
-        // Token expiré, essayer de le rafraîchir
-        console.log('🔄 Token expiré, tentative de rafraîchissement...');
-        
-        const refreshed = await this.refreshAccessToken(session.provider_refresh_token);
-        if (refreshed) {
-          console.log('✅ Token rafraîchi avec succès');
-          return refreshed;
-        }
-      }
-
-      // Si le refresh échoue ou pas de refresh_token
-      throw new Error('AUTH_REQUIRED');
-      
-    } catch (error) {
-      if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
         throw new Error('Session expirée. Veuillez vous reconnecter pour continuer.');
       }
-      throw error;
-    }
-  }
 
-  /**
-   * Rafraîchit le token d'accès en utilisant le refresh token
-   */
-  private async refreshAccessToken(refreshToken: string): Promise<string | null> {
-    try {
-      const response = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '',
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token'
-        })
-      });
-
-      if (!response.ok) {
-        console.error('❌ Erreur refresh token:', await response.text());
-        return null;
-      }
-
-      const tokens = await response.json();
-      
-      // Mettre à jour la session Supabase avec le nouveau token
-      const { error } = await supabase.auth.updateUser({
-        data: { 
-          provider_token: tokens.access_token,
-          token_expires_at: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString()
-        }
-      });
-
-      if (error) {
-        console.error('❌ Erreur mise à jour session:', error);
-        return null;
-      }
-
-      return tokens.access_token;
+      return session.provider_token;
       
     } catch (error) {
-      console.error('❌ Erreur lors du rafraîchissement du token:', error);
-      return null;
+      console.error('❌ Erreur getValidAccessToken:', error);
+      if (error instanceof Error && error.message.includes('reconnecter')) {
+        throw error;
+      }
+      throw new Error('Session expirée. Veuillez vous reconnecter pour continuer.');
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async makeGmailRequest(endpoint: string): Promise<any> {
-    const maxRetries = 2;
+    const maxRetries = 3;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        // Récupérer un token valide (Supabase gère automatiquement le refresh)
         const accessToken = await this.getValidAccessToken();
         
         const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me${endpoint}`, {
@@ -171,15 +106,30 @@ class GmailService {
         });
 
         if (!response.ok) {
-          const error = await response.json();
+          const errorText = await response.text();
+          let errorMessage = response.statusText;
           
-          // Si c'est une erreur d'auth et qu'on peut encore réessayer
-          if (response.status === 401 && attempt < maxRetries) {
-            console.log(`🔄 Erreur 401, tentative ${attempt}/${maxRetries}, retry...`);
-            continue;
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error?.message || errorMessage;
+          } catch {
+            // Si ce n'est pas du JSON, utiliser le texte brut
+            errorMessage = errorText || errorMessage;
           }
           
-          throw new Error(`Erreur Gmail API: ${error.error?.message || response.statusText}`);
+          // Si c'est une erreur d'auth (401/403), forcer la reconnexion
+          if (response.status === 401 || response.status === 403) {
+            if (attempt < maxRetries) {
+              console.log(`🔄 Erreur ${response.status}, tentative ${attempt}/${maxRetries}, retry avec nouveau token...`);
+              // Attendre un peu avant de retry
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+              continue;
+            } else {
+              throw new Error('Session expirée. Veuillez vous reconnecter pour continuer.');
+            }
+          }
+          
+          throw new Error(`Erreur Gmail API (${response.status}): ${errorMessage}`);
         }
 
         return response.json();
@@ -187,7 +137,7 @@ class GmailService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         
-        // Si c'est une erreur AUTH_REQUIRED, ne pas retry
+        // Si c'est une erreur de session expirée, ne pas retry
         if (lastError.message.includes('Session expirée')) {
           throw lastError;
         }
@@ -199,7 +149,7 @@ class GmailService {
       }
     }
 
-    throw lastError || new Error('Erreur inconnue lors de la requête Gmail');
+    throw lastError || new Error('Erreur inconnue lors de la requête Gmail après plusieurs tentatives');
   }
 
   async fetchRecentEmails(maxResults: number = 100): Promise<ProcessedEmail[]> {
